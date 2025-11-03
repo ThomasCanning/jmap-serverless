@@ -7,7 +7,7 @@
 #   - deploy           : Deploy everything to AWS (requires config.mk and .env)
 #
 # Internal helper targets (used by other targets; you generally do not run directly):
-#   - tf-apply, sam-deploy, set-admin-password, remove-base-path-mapping, tf-bootstrap, ensure-config
+#   - tf-apply, sam-deploy, set-admin-password, tf-bootstrap, ensure-config
 
 -include config.mk
  -include config.mk
@@ -19,17 +19,17 @@ TF_DIR      ?= infrastructure
 # Derive SAM stack name from samconfig.toml if not provided via env
 STACK_NAME  ?= $(shell awk -F'=' '/^stack_name/ {gsub(/[ "\r\t]/, "", $$2); print $$2}' samconfig.toml)
 
-.PHONY: deploy tf-apply sam-deploy set-admin-password remove-base-path-mapping build-web
+.PHONY: deploy tf-apply sam-deploy set-admin-password build-web
 .PHONY: local local-backend local-frontend gen-env-local
 
 gen-env-local:
 	@STACK_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query 'Stacks[0].StackId' --output text 2>/dev/null || true); \
 	USER_POOL_CLIENT_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text 2>/dev/null || true); \
 	REG=$(REGION); API_BASE="http://localhost:3001"; \
-	printf '{\n  "wellKnownJmapFunction": {\n    "API_URL": "%s/jmap",\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "jmapFunction": {\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "authLogoutFunction": {}\n}\n' "$$API_BASE" "$$USER_POOL_CLIENT_ID" "$$REG" "$$USER_POOL_CLIENT_ID" "$$REG" > env.json; \
+	printf '{\n  "wellKnownJmapFunction": {\n    "API_URL": "%s/jmap",\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "jmapFunction": {\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "authTokenFunction": {\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "authLogoutFunction": {}\n}\n' "$$API_BASE" "$$USER_POOL_CLIENT_ID" "$$REG" "$$USER_POOL_CLIENT_ID" "$$REG" "$$USER_POOL_CLIENT_ID" "$$REG" > env.json; \
 	echo "✓ Wrote env.json (region=$(REGION), client_id=$${USER_POOL_CLIENT_ID:-<unset>})"
 
-deploy: ensure-config remove-base-path-mapping sam-deploy set-admin-password build-web tf-bootstrap tf-apply
+deploy: ensure-config sam-deploy set-admin-password build-web tf-bootstrap tf-apply
 
 build-web:
 	@echo "Building web application..."
@@ -58,20 +58,6 @@ sam-deploy:
 	AWS_REGION=$(REGION) sam deploy --no-confirm-changeset --region $(REGION) \
 		--parameter-overrides RootDomainName=$(ROOT_DOMAIN) \
 		AdminUsername=$(or $(ADMIN_USERNAME),admin)
-
-remove-base-path-mapping:
-	@echo "Removing legacy REST API base path mapping if present..."
-	@AWS_REGION=$(REGION) aws apigateway get-base-path-mappings --domain-name $(shell echo jmap.$(ROOT_DOMAIN)) --query 'items[].basePath' --output text 2>/dev/null | \
-	awk '{for(i=1;i<=NF;i++) print $$i}' | while read -r path; do \
-	  if [ "$$path" = "(none)" ] || [ -z "$$path" ]; then \
-	    echo "Deleting root mapping on domain jmap.$(ROOT_DOMAIN)..."; \
-	    AWS_REGION=$(REGION) aws apigateway delete-base-path-mapping --domain-name jmap.$(ROOT_DOMAIN) --base-path '(none)' || true; \
-	  else \
-	    echo "Deleting mapping $$path on domain jmap.$(ROOT_DOMAIN)..."; \
-	    AWS_REGION=$(REGION) aws apigateway delete-base-path-mapping --domain-name jmap.$(ROOT_DOMAIN) --base-path $$path || true; \
-	  fi; \
-	done; \
-	echo "✓ Legacy mappings cleanup attempted"
 
 set-admin-password:
 	@if [ -z "$$ADMIN_PASSWORD" ]; then \

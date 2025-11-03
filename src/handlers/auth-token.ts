@@ -1,7 +1,7 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda'
 import { createAuthHandler, AuthenticatedContext, corsHeaders } from '../lib/auth'
 
-export const wellKnownJmapHandler = createAuthHandler(async (
+export const handler = createAuthHandler(async (
   event: APIGatewayProxyEventV2,
   auth: AuthenticatedContext
 ): Promise<APIGatewayProxyStructuredResultV2> => {
@@ -12,9 +12,7 @@ export const wellKnownJmapHandler = createAuthHandler(async (
       ...corsHeaders(event),
     },
     body: JSON.stringify({
-      capabilities: {},
-      apiUrl: process.env.API_URL || '',
-      primaryAccounts: {},
+      accessToken: auth.bearerToken,
     }),
   }
 })

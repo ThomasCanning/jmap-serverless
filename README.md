@@ -50,38 +50,20 @@ make deploy
 
 This creates:
 - **Cognito User Pool** with admin user (`admin@your-domain.com` by default)
-- **Cognito Hosted UI** for authentication
-- **API Gateway** with Cognito authentication
+- **API Gateway HTTP API** with Lambda-based authentication
 - **Lambda Functions**:
-  - GET `/.well-known/jmap` (public)
-  - GET `/auth-test` (requires Cognito auth)
+  - GET `/.well-known/jmap` (JMAP discovery endpoint)
+  - POST `/jmap` (JMAP RPC endpoint)
+  - POST `/auth/logout` (logout endpoint)
 - **Route53 DNS** configuration (if applicable)
 
 ## Authentication
 
-### Using Cognito Hosted UI
+The application uses AWS Cognito with support for both Basic Authentication (username:password) and Bearer tokens (JWT). Authentication is cookie-based for browsers with automatic token refresh. See [Authentication Documentation](docs/AUTHENTICATION.md) for details.
 
-The deployment creates a Cognito Hosted UI for user authentication. After deployment, get the hosted UI URL from CloudFormation outputs:
-
-```bash
-aws cloudformation describe-stacks \
-  --stack-name $(grep stack_name samconfig.toml | cut -d'"' -f2) \
-  --query 'Stacks[0].Outputs[?OutputKey==`CognitoHostedUIUrl`].OutputValue' \
-  --output text
-```
-
-Or view it in the AWS Console under CloudFormation stack outputs.
-
-### First Login (Admin User)
-
-1. Navigate to the **CognitoHostedUIUrl** from stack outputs
-2. Log in with:
-   - **Username**: `admin@your-domain.com` (or `<ADMIN_USERNAME>@<ROOT_DOMAIN>`)
-   - **Password**: The temporary password from your `.env` file
-3. Cognito will prompt you to set a new permanent password (this is handled automatically by the hosted UI)
-4. After setting your new password, you'll be authenticated and redirected to your callback URL
-
-The hosted UI automatically handles the password change challenge, so no additional code is needed in your application.
+**Admin User:**
+- Created during deployment as `admin@<ROOT_DOMAIN>`
+- Password set via `.env` file (must meet Cognito requirements: 8+ chars, uppercase, lowercase, number)
 
 ## Local Development
 

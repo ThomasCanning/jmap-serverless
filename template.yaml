@@ -149,6 +149,30 @@ Resources:
         EntryPoints:
           - src/handlers/auth-logout.ts
 
+  # Lambda function: Get token (requires authentication)
+  authTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/auth-token.handler
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref JmapHttpApi
+            Path: /auth/token
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/auth-token.ts
+
   
 
   # User pool for auth (cognito)

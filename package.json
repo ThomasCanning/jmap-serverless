@@ -30,6 +30,10 @@
       "**/__tests__/**/*.[jt]s?(x)",
       "**/?(*.)+(spec|test).[jt]s?(x)"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "__tests__/__mocks__"
+    ],
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -43,6 +47,12 @@
           "tsconfig": "tsconfig.json"
         }
       ]
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!jose)"
+    ],
+    "moduleNameMapper": {
+      "^jose$": "<rootDir>/__tests__/__mocks__/jose.ts"
     }
   }
 }

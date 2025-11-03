@@ -1,11 +1,12 @@
 {
   "version": "2.0",
-  "routeKey": "GET /.well-known/jmap",
-  "rawPath": "/.well-known/jmap",
+  "routeKey": "POST /jmap",
+  "rawPath": "/jmap",
   "rawQueryString": "",
   "headers": {
     "accept": "application/json",
-    "content-type": "application/json"
+    "content-type": "application/json",
+    "authorization": "Bearer eyJraWQiOiJ..."
   },
   "requestContext": {
     "accountId": "123456789012",
@@ -13,18 +14,19 @@
     "domainName": "jmap.example.com",
     "domainPrefix": "jmap",
     "http": {
-      "method": "GET",
-      "path": "/.well-known/jmap",
+      "method": "POST",
+      "path": "/jmap",
       "protocol": "HTTP/1.1",
       "sourceIp": "127.0.0.1",
       "userAgent": "test-agent"
     },
     "requestId": "test-request-id",
-    "routeKey": "GET /.well-known/jmap",
+    "routeKey": "POST /jmap",
     "stage": "$default",
     "time": "01/Jan/2024:00:00:00 +0000",
     "timeEpoch": 1704067200000
   },
+  "body": "{\"methodCalls\": [[\"Mailbox/get\", {\"accountId\": \"u1\"}, \"c1\"]]}",
   "isBase64Encoded": false
 }
 
