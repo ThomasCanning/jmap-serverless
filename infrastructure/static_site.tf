@@ -3,7 +3,7 @@
 ########################
 
 locals {
-  site_dir = "${path.module}/../web"
+  site_dir = "${path.module}/../web/dist"
 }
 
 resource "aws_s3_bucket" "site" {
@@ -57,7 +57,12 @@ resource "aws_s3_object" "site_files" {
   key      = each.value
   source   = "${local.site_dir}/${each.value}"
   etag     = filemd5("${local.site_dir}/${each.value}")
-  content_type = (endswith(each.value, ".html") ? "text/html" : (endswith(each.value, ".css") ? "text/css" : null))
+  content_type = (
+    endswith(each.value, ".html") ? "text/html" :
+    endswith(each.value, ".css") ? "text/css" :
+    endswith(each.value, ".js") ? "application/javascript" :
+    null
+  )
 }
 
 output "site_bucket_name" {

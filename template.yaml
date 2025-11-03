@@ -17,6 +17,10 @@ Parameters:
   RootDomainName:
     Type: String
     Description: Root domain name for the JMAP API
+  AdminUsername:
+    Type: String
+    Description: Admin username (without domain, will be used as username@RootDomainName)
+    Default: admin
 
 # Globals section for shared function and API Gateway configuration
 Globals:
@@ -29,90 +33,73 @@ Globals:
 # Resources declares the AWS resources that you want to include in the stack
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
 Resources:
-  # Each Lambda function is defined by properties:
-  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  # Explicit API Gateway with Cognito authorization
+  JmapApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+        AddDefaultAuthorizerToCorsPreflight: false
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
 
-  # Lambda function: get all items from DynamoDB
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
+  # Cognito User Pool Domain (required for hosted UI)
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
     Properties:
-      Handler: src/handlers/get-all-items.getAllItemsHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE: !Ref SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: es2022
-        Sourcemap: true
-        External:
-          - '@aws-sdk/*'
-        EntryPoints:
-          - src/handlers/get-all-items.ts
-  # Lambda function: get item by ID from DynamoDB
-  getByIdFunction:
-    Type: AWS::Serverless::Function
+      Domain: !Sub '${AWS::StackName}-auth'
+      UserPoolId: !Ref UserPool
+
+  # Cognito User Pool Client (required for API Gateway integration)
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
     Properties:
-      Handler: src/handlers/get-by-id.getByIdHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE: !Ref SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /{id}
-            Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: es2022
-        Sourcemap: true
-        External:
-          - '@aws-sdk/*'
-        EntryPoints:
-          - src/handlers/get-by-id.ts
-  # Lambda function: put item into DynamoDB
-  putItemFunction:
-    Type: AWS::Serverless::Function
+      UserPoolId: !Ref UserPool
+      ClientName: jmap-serverless-client
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs:
+        - !Sub 'https://${RootDomainName}'
+        - !Sub 'https://${RootDomainName}/'
+        - !Sub 'https://jmap.${RootDomainName}'
+        - !Sub 'https://jmap.${RootDomainName}/'
+      LogoutURLs:
+        - !Sub 'https://${RootDomainName}'
+        - !Sub 'https://jmap.${RootDomainName}'
+      SupportedIdentityProviders:
+        - COGNITO
+
+  # Admin user for the User Pool
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: UserPoolClient
     Properties:
-      Handler: src/handlers/put-item.putItemHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE: !Ref SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: POST
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: es2022
-        Sourcemap: true
-        External:
-          - '@aws-sdk/*'
-        EntryPoints:
-          - src/handlers/put-item.ts
+      UserPoolId: !Ref UserPool
+      Username: !Sub '${AdminUsername}@${RootDomainName}'
+      MessageAction: SUPPRESS
+      UserAttributes:
+        - Name: email
+          Value: !Sub '${AdminUsername}@${RootDomainName}'
+        - Name: email_verified
+          Value: 'true'
+      DesiredDeliveryMediums: []
+      ForceAliasCreation: false
 
   # Lambda function: JMAP well-known endpoint handler
   wellKnownJmapFunction:
@@ -126,8 +113,11 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId: !Ref JmapApi
             Path: /.well-known/jmap
             Method: GET
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -139,19 +129,30 @@ Resources:
         EntryPoints:
           - src/handlers/well-known-jmap.ts
 
-  # Simple syntax to create a DynamoDB table with a single attribute primary key, more in
-  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlesssimpletable
-
-  # DynamoDB table to store item: {id: &lt;ID&gt;, name: &lt;NAME&gt;}
-  SampleTable:
-    Type: AWS::Serverless::SimpleTable
+  # Lambda function: Auth test (requires Cognito auth)
+  authTestFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      PrimaryKey:
-        Name: id
-        Type: String
-      ProvisionedThroughput:
-        ReadCapacityUnits: 2
-        WriteCapacityUnits: 2
+      Handler: src/handlers/auth-test.authTestHandler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref JmapApi
+            Path: /auth-test
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        External:
+          - '@aws-sdk/*'
+        EntryPoints:
+          - src/handlers/auth-test.ts
+
+  
 
   # User pool for auth (cognito)
   UserPool:
@@ -178,10 +179,22 @@ Resources:
 Outputs:
   WebEndpoint:
     Description: "API Gateway endpoint URL for Prod stage"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
+    Value: !Sub "https://${JmapApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
   RestApiId:
     Description: "API Gateway Rest API ID"
-    Value: !Ref ServerlessRestApi
+    Value: !Ref JmapApi
   RestApiStageName:
     Description: "API Gateway stage name"
     Value: Prod
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref UserPoolClient
+  CognitoHostedUIUrl:
+    Description: "Cognito Hosted UI URL for login"
+    Value: !Sub "https://${AWS::StackName}-auth.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=code&redirect_uri=https://${RootDomainName}"
+  CognitoHostedUIDomain:
+    Description: "Cognito Hosted UI Domain"
+    Value: !Sub "${AWS::StackName}-auth.auth.${AWS::Region}.amazoncognito.com"

@@ -1,0 +1,23 @@
+{
+  "resource": "/.well-known/jmap",
+  "path": "/.well-known/jmap",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "multiValueHeaders": {
+    "Accept": ["application/json"]
+  },
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": null,
+  "stageVariables": null,
+  "requestContext": {
+    "resourcePath": "/.well-known/jmap",
+    "httpMethod": "GET",
+    "path": "/Prod/.well-known/jmap"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}
+

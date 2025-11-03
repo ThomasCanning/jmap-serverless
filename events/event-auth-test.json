@@ -1,0 +1,30 @@
+{
+  "resource": "/auth-test",
+  "path": "/auth-test",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer dummy"
+  },
+  "multiValueHeaders": {
+    "Accept": ["application/json"],
+    "Authorization": ["Bearer dummy"]
+  },
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": null,
+  "stageVariables": null,
+  "requestContext": {
+    "resourcePath": "/auth-test",
+    "httpMethod": "GET",
+    "path": "/Prod/auth-test",
+    "authorizer": {
+      "claims": {
+        "sub": "user-123"
+      }
+    }
+  },
+  "body": null,
+  "isBase64Encoded": false
+}
+

@@ -172,6 +172,19 @@ resource "aws_cloudfront_distribution" "root" {
       function_arn = aws_cloudfront_function.redirect.arn
     }
   }
+
+  # Error responses for SPA routing - return index.html for 404/403 errors
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
 }
 
 resource "aws_route53_record" "root_a" {

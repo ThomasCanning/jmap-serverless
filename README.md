@@ -1,174 +1,126 @@
 # jmap-serverless
 
-- `src` - Code for the application's Lambda function.
-- `events` - Invocation events that you can use to invoke the function.
-- `__tests__` - Unit tests for the application code. 
-- `template.yaml` - A template that defines the application's AWS resources.
+A serverless JMAP (JSON Meta Application Protocol) API implementation using AWS Lambda, API Gateway, and Cognito.
 
-`template.yaml` file defines AWS resources. You can update the template to add AWS resources through the same deployment process that updates your application code.
+## Prerequisites
 
-## Deploy the sample application
+Install the following tools:
 
-To use the AWS SAM CLI, you need the following tools:
+* **AWS SAM CLI** - [Install the AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+* **Node.js 22** - [Install Node.js 22](https://nodejs.org/en/)
+* **Docker** - [Install Docker](https://hub.docker.com/search/?type=edition&offering=community) (for local testing)
+* **Terraform** - [Install Terraform](https://developer.hashicorp.com/terraform/downloads)
+* **AWS CLI** - [Install AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 
-* AWS SAM CLI - [Install the AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html).
-* Node.js - [Install Node.js 22](https://nodejs.org/en/), including the npm package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community).
+## Initial Setup
 
-To build and deploy your application for the first time, run the following in your shell (you will need to of set up [aws sso](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html)):
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure deployment settings** - Edit `config.mk`:
+   ```makefile
+   REGION = eu-west-2
+   ROOT_DOMAIN = your-domain.com
+   ```
+
+3. **Set up admin credentials** - Create `.env` file (see `.env.example`):
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+   
+   The `.env` file is gitignored. Your password must meet Cognito requirements:
+   - Minimum 8 characters
+   - At least one uppercase, one lowercase, and one number
+
+4. **Configure AWS credentials:**
+   ```bash
+   aws configure sso  # or aws configure
+   ```
+
+## Deployment
+
+Deploy the application:
+```bash
+source .env  # Load admin credentials
+make deploy
+```
+
+This creates:
+- **Cognito User Pool** with admin user (`admin@your-domain.com` by default)
+- **Cognito Hosted UI** for authentication
+- **API Gateway** with Cognito authentication
+- **Lambda Functions**:
+  - GET `/.well-known/jmap` (public)
+  - GET `/auth-test` (requires Cognito auth)
+- **Route53 DNS** configuration (if applicable)
+
+## Authentication
+
+### Using Cognito Hosted UI
+
+The deployment creates a Cognito Hosted UI for user authentication. After deployment, get the hosted UI URL from CloudFormation outputs:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name $(grep stack_name samconfig.toml | cut -d'"' -f2) \
+  --query 'Stacks[0].Outputs[?OutputKey==`CognitoHostedUIUrl`].OutputValue' \
+  --output text
+```
+
+Or view it in the AWS Console under CloudFormation stack outputs.
+
+### First Login (Admin User)
+
+1. Navigate to the **CognitoHostedUIUrl** from stack outputs
+2. Log in with:
+   - **Username**: `admin@your-domain.com` (or `<ADMIN_USERNAME>@<ROOT_DOMAIN>`)
+   - **Password**: The temporary password from your `.env` file
+3. Cognito will prompt you to set a new permanent password (this is handled automatically by the hosted UI)
+4. After setting your new password, you'll be authenticated and redirected to your callback URL
+
+The hosted UI automatically handles the password change challenge, so no additional code is needed in your application.
+
+## Local Development
+
+### Build and Test Locally
 
 ```bash
 sam build
-sam deploy --guided
+sam local start-api
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+Test the local API:
+```bash
+curl http://localhost:3000/.well-known/jmap
+```
 
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
+## Testing
 
-The API Gateway endpoint API will be displayed in the outputs when the deployment is complete.
+Run unit tests:
+```bash
+npm test
+```
 
-## Use the AWS SAM CLI to build and test locally
-
-Build your application by using the `sam build` command.
+## Viewing Logs
 
 ```bash
-my-application$ sam build
-```
-
-The AWS SAM CLI installs dependencies that are defined in `package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
-
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
-
-Run functions locally and invoke them with the `sam local invoke` command.
-
-```bash
-my-application$ sam local invoke putItemFunction --event events/event-post-item.json --env-vars env.json
-my-application$ sam local invoke getAllItemsFunction --event events/event-get-all-items.json --env-vars env.json
-```
-
-The AWS SAM CLI can also emulate your application's API. Use the `sam local start-api` command to run the API locally on port 3000.
-
-```bash
-my-application$ sam local start-api --env-vars env.json
-my-application$ curl http://localhost:3000/
-```
-
-The AWS SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
-```yaml
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: GET
-```
-
-### Local environment variables
-
-Always run local commands with `--env-vars env.json`. Set `SAMPLE_TABLE` in `env.json` to your deployed DynamoDB table name for each function.
-
-Minimal `env.json`:
-
-```json
-{
-  "getAllItemsFunction": { "SAMPLE_TABLE": "<your-physical-table-name>" },
-  "getByIdFunction":    { "SAMPLE_TABLE": "<your-physical-table-name>" },
-  "putItemFunction":    { "SAMPLE_TABLE": "<your-physical-table-name>" }
-}
-```
-
-Find your table name after deploy:
-
-```bash
-aws dynamodb list-tables --region <your-region>
-```
-
-With the local API running, test with curl:
-
-- POST an item
-```bash
-curl -X POST http://localhost:3000/ \
-  -H "Content-Type: application/json" \
-  -d '{"id": "id1", "name": "name1"}'
-```
-
-- GET all items
-```bash
-curl http://localhost:3000/
-```
-
-- GET by id
-```bash
-curl http://localhost:3000/id1
-```
-
-## Add a resource to your application
-The application template uses AWS SAM to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources, such as functions, triggers, and APIs. For resources that aren't included in the [AWS SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use the standard [AWS CloudFormation resource types](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html).
-
-Update `template.yaml` to add a dead-letter queue to your application. In the **Resources** section, add a resource named **MyQueue** with the type **AWS::SQS::Queue**. Then add a property to the **AWS::Serverless::Function** resource named **DeadLetterQueue** that targets the queue's Amazon Resource Name (ARN), and a policy that grants the function permission to access the queue.
-
-```
-Resources:
-  MyQueue:
-    Type: AWS::SQS::Queue
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/get-all-items.getAllItemsHandler
-      Runtime: nodejs22.x
-      DeadLetterQueue:
-        Type: SQS 
-        TargetArn: !GetAtt MyQueue.Arn
-      Policies:
-        - SQSSendMessagePolicy:
-            QueueName: !GetAtt MyQueue.QueueName
-```
-
-The dead-letter queue is a location for Lambda to send events that could not be processed. It's only used if you invoke your function asynchronously, but it's useful here to show how you can modify your application's resources and function configuration.
-
-Deploy the updated application.
-
-```bash
-my-application$ sam deploy
-```
-
-Open the [**Applications**](https://console.aws.amazon.com/lambda/home#/applications) page of the Lambda console, and choose your application. When the deployment completes, view the application resources on the **Overview** tab to see the new resource. Then, choose the function to see the updated configuration that specifies the dead-letter queue.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, the AWS SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs that are generated by your Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-**NOTE:** This command works for all Lambda functions, not just the ones you deploy using AWS SAM.
-
-```bash
-my-application$ sam logs -n putItemFunction --stack-name sam-app --tail
-```
-
-**NOTE:** This uses the logical name of the function within the stack. This is the correct name to use when searching logs inside an AWS Lambda function within a CloudFormation stack, even if the deployed function name varies due to CloudFormation's unique resource name generation.
-
-You can find more information and examples about filtering Lambda function logs in the [AWS SAM CLI documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Unit tests
-
-Tests are defined in the `__tests__` folder in this project. Use `npm` to install the [Jest test framework](https://jestjs.io/) and run unit tests.
-
-```bash
-my-application$ npm install
-my-application$ npm run test
+sam logs -n wellKnownJmapFunction --stack-name <stack-name> --tail
 ```
 
 ## Cleanup
 
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
+Delete the application:
 ```bash
 sam delete --stack-name jmap-serverless
+cd infrastructure && terraform destroy
 ```
+
+**Note:** The User Pool has `DeletionPolicy: Retain` and must be deleted manually from the AWS Console if needed.
 
 ## Resources
 
-For an introduction to the AWS SAM specification, the AWS SAM CLI, and serverless application concepts, see the [AWS SAM Developer Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html).
-
-Next, you can use the AWS Serverless Application Repository to deploy ready-to-use apps that go beyond Hello World samples and learn how authors developed their applications. For more information, see the [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/) and the [AWS Serverless Application Repository Developer Guide](https://docs.aws.amazon.com/serverlessrepo/latest/devguide/what-is-serverlessrepo.html).
+- [AWS SAM Developer Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
+- [JMAP Specification](https://jmap.io/)

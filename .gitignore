@@ -18,3 +18,7 @@ node_modules/
 env.json
 
 node_modules
+
+# Frontend build artifacts
+web/dist/
+web/.tanstack/
