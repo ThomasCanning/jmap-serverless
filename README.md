@@ -19,10 +19,10 @@ Install the following tools:
    npm install
    ```
 
-2. **Configure deployment settings** - Edit `config.mk`:
-   ```makefile
-   REGION = eu-west-2
-   ROOT_DOMAIN = your-domain.com
+2. **Configure deployment settings** - Copy and edit `config.mk`:
+   ```bash
+   cp config.mk.example config.mk
+   # Edit config.mk with your domain and AWS region
    ```
 
 3. **Set up admin credentials** - Create `.env` file (see `.env.example`):

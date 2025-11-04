@@ -1,0 +1,17 @@
+# Central deployment config (single source of truth)
+# Copy this file to config.mk and edit with your values
+#
+# Usage:
+#   cp config.mk.example config.mk
+#   # Edit config.mk with your domain and AWS region
+#   make deploy
+
+# AWS Region for your deployment (e.g., us-east-1, eu-west-2)
+REGION = eu-west-2
+
+# Your root domain name (will be publicly visible in DNS)
+# This domain will host:
+#   - https://your-domain.com (web UI via CloudFront)
+#   - https://jmap.your-domain.com (JMAP API)
+ROOT_DOMAIN = example.com
+

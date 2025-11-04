@@ -17,6 +17,9 @@ node_modules/
 .env
 env.json
 
+# Deployment configuration (use config.mk.example as template)
+config.mk
+
 node_modules
 
 # Frontend build artifacts
