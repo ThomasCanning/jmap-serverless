@@ -16,11 +16,15 @@ Transform:
 Parameters:
   RootDomainName:
     Type: String
-    Description: Root domain name for the JMAP API
+    Description: Root domain name for the JMAP API (e.g., jmapbox.com)
   AdminUsername:
     Type: String
     Description: Admin username (without domain, will be used as username@RootDomainName)
     Default: admin
+  AllowedClientOrigins:
+    Type: CommaDelimitedList
+    Description: "Comma-separated allowed CORS origins (e.g., https://jmapbox.com,https://second.com,http://localhost:5173)"
+    Default: "http://localhost:5173"
 
 # Globals section for shared function and API Gateway configuration
 Globals:
@@ -37,18 +41,20 @@ Resources:
   JmapHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 20
       CorsConfiguration:
         AllowMethods:
-          - '*'
+          - GET
+          - POST
+          - OPTIONS
         AllowHeaders:
-          - '*'
           - Authorization
           - Content-Type
-        AllowOrigins:
-          - !Sub 'https://${RootDomainName}'
-          - !Sub 'https://jmap.${RootDomainName}'
-          - 'http://localhost:5173'
-          - 'http://localhost:3000'
+          - Cookie
+          - X-Requested-With
+        AllowOrigins: !Ref AllowedClientOrigins
         AllowCredentials: true
 
   # Cognito User Pool Client (required for API Gateway integration)

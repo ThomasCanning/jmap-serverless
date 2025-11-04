@@ -1,8 +1,11 @@
 {
-  "name": "delete-test-01",
-  "description": "delete-test-01-description",
+  "name": "jmap-serverless",
+  "description": "Serverless JMAP email server built with AWS",
   "version": "0.0.1",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.922.0",
     "@aws-sdk/client-dynamodb": "^3.398.0",

@@ -108,10 +108,10 @@ describe('auth.ts', () => {
 
     it('handles whitespace around separators', () => {
       const result = parseCookies('  session_id = abc123 ; user = john  ')
-      // Implementation trims the part but not individual key/value
+      // Implementation now trims both keys and values
       expect(result).toEqual({
-        'session_id ': ' abc123',
-        'user ': ' john',
+        session_id: 'abc123',
+        user: 'john',
       })
     })
 

@@ -1,310 +1,340 @@
-Welcome to your new TanStack app! 
+# JMAP Web Client
 
-# Getting Started
+Pure React SPA for JMAP servers (RFC 8620 compliant).
 
-To run this application:
+## Features
+
+- **Pure frontend** - No server dependencies, completely decoupled from backend
+- **Universal** - Works with any RFC 8620 compliant JMAP server
+- **Autodiscovery** - Supports RFC 8620 autodiscovery (client follows server redirects)
+- **Modern UI** - React + TypeScript + Vite
+- **Serverless Deployment** - S3 + CloudFront
+- **Multiple Deployment Options** - Deploy at root, subdomain, or different domain
+
+## Architecture
+
+- **Build Tool**: Vite
+- **Hosting**: AWS S3 + CloudFront
+- **SSL**: AWS Certificate Manager
+- **API Calls**: Direct to JMAP server (no proxying)
+
+## Prerequisites
+
+- Node.js 18+
+- AWS CLI configured
+- Terraform installed
+- DNS provider access
+- Deployed JMAP server (see [jmap-server](https://github.com/yourname/jmap-server))
+
+## Quick Start
+
+### 1. Install Dependencies
 
 ```bash
 npm install
-npm run start
 ```
 
-# Building For Production
-
-To build this application for production:
+### 2. Configure Deployment
 
 ```bash
-npm run build
+cp config.mk.example config.mk
+# Edit config.mk with:
+#   - REGION: AWS region
+#   - DEPLOYMENT_DOMAIN: Where to host (e.g., jmapbox.com or app.jmapbox.com)
+#   - JMAP_API_URL: Your JMAP server URL (e.g., https://jmap.jmapbox.com)
 ```
 
-## Testing
-
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+### 3. Deploy
 
 ```bash
-npm run test
+make deploy
 ```
 
-## Styling
+### 4. Create DNS Records
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+Follow the DNS setup instructions from terraform output.
 
+**Required:**
+1. Certificate validation CNAME (temporary)
+2. Domain A or CNAME record pointing to CloudFront
 
-## Linting & Formatting
+Wait 10-15 minutes for DNS propagation and certificate validation.
 
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
+### 5. Test
 
 ```bash
-npm run lint
-npm run format
-npm run check
+curl https://your-domain.com
 ```
 
+## Configuration
 
-## Shadcn
+### config.mk
 
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
+Main deployment configuration:
+
+```makefile
+REGION = eu-west-2
+DEPLOYMENT_DOMAIN = jmapbox.com
+JMAP_API_URL = https://jmap.jmapbox.com
+```
+
+### .env.production
+
+Runtime configuration (create from `.env.production.example`):
 
 ```bash
-pnpx shadcn@latest add button
+VITE_API_URL=https://jmap.jmapbox.com
+VITE_ENABLE_AUTODISCOVERY=true
 ```
 
+## Development
 
-
-## Routing
-This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add another a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
-
-import { Link } from "@tanstack/react-router";
-
-export const Route = createRootRoute({
-  component: () => (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </nav>
-      </header>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
-})
-```
-
-The `<TanStackRouterDevtools />` component is not required so you can remove it if you don't want it in your layout.
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-const peopleRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/people",
-  loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
-    return response.json() as Promise<{
-      results: {
-        name: string;
-      }[];
-    }>;
-  },
-  component: () => {
-    const data = peopleRoute.useLoaderData();
-    return (
-      <ul>
-        {data.results.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    );
-  },
-});
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-### React-Query
-
-React-Query is an excellent addition or alternative to route loading and integrating it into you application is a breeze.
-
-First add your dependencies:
+Run locally:
 
 ```bash
-npm install @tanstack/react-query @tanstack/react-query-devtools
+make dev
+# Opens at http://localhost:5173
 ```
 
-Next we'll need to create a query client and provider. We recommend putting those in `main.tsx`.
+The dev server will connect to the JMAP server specified in `config.mk`.
 
-```tsx
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+## Deployment Scenarios
 
-// ...
+### Scenario 1: Same Domain as Server
 
-const queryClient = new QueryClient();
+Deploy web client at root domain where JMAP server is hosted:
 
-// ...
+```makefile
+# Server at: jmap.jmapbox.com
+# Client at: jmapbox.com
 
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-
-  root.render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  );
-}
+DEPLOYMENT_DOMAIN = jmapbox.com
+JMAP_API_URL = https://jmap.jmapbox.com
 ```
 
-You can also add TanStack Query Devtools to the root route (optional).
+**Note:** Server handles `jmapbox.com/.well-known/jmap` autodiscovery redirect.
 
-```tsx
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+### Scenario 2: Subdomain
 
-const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <ReactQueryDevtools buttonPosition="top-right" />
-      <TanStackRouterDevtools />
-    </>
-  ),
-});
+Deploy web client at subdomain:
+
+```makefile
+# Server at: jmap.jmapbox.com
+# Client at: app.jmapbox.com
+
+DEPLOYMENT_DOMAIN = app.jmapbox.com
+JMAP_API_URL = https://jmap.jmapbox.com
 ```
 
-Now you can use `useQuery` to fetch your data.
+### Scenario 3: Different Domain
 
-```tsx
-import { useQuery } from "@tanstack/react-query";
+Deploy web client at completely different domain:
 
-import "./App.css";
+```makefile
+# Server at: jmap.jmapbox.com
+# Client at: otherdomain.com
 
-function App() {
-  const { data } = useQuery({
-    queryKey: ["people"],
-    queryFn: () =>
-      fetch("https://swapi.dev/api/people")
-        .then((res) => res.json())
-        .then((data) => data.results as { name: string }[]),
-    initialData: [],
-  });
-
-  return (
-    <div>
-      <ul>
-        {data.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-export default App;
+DEPLOYMENT_DOMAIN = otherdomain.com
+JMAP_API_URL = https://jmap.jmapbox.com
 ```
 
-You can find out everything you need to know on how to use React-Query in the [React-Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).
+**Important:** Add `https://otherdomain.com` to server's `ALLOWED_ORIGINS`.
 
-## State Management
+### Scenario 4: Multiple Clients
 
-Another common requirement for React applications is state management. There are many options for state management in React. TanStack Store provides a great starting point for your project.
-
-First you need to add TanStack Store as a dependency:
+Deploy multiple web clients pointing to same server:
 
 ```bash
-npm install @tanstack/store
+# Client 1
+DEPLOYMENT_DOMAIN=jmapbox.com make deploy
+
+# Client 2 (new repo/directory)
+DEPLOYMENT_DOMAIN=second.com make deploy
+
+# Client 3 (new repo/directory)
+DEPLOYMENT_DOMAIN=app.third.com make deploy
 ```
 
-Now let's create a simple counter in the `src/App.tsx` file as a demonstration.
+All clients connect to: `https://jmap.jmapbox.com`
 
-```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store } from "@tanstack/store";
-import "./App.css";
+Add all domains to server's `ALLOWED_ORIGINS`.
 
-const countStore = new Store(0);
+## Autodiscovery
 
-function App() {
-  const count = useStore(countStore);
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-    </div>
-  );
-}
+When a user enters `bob@jmapbox.com`:
 
-export default App;
+1. Client extracts domain: `jmapbox.com`
+2. Client tries: `https://jmapbox.com/.well-known/jmap`
+3. Server returns: `301 redirect to https://jmap.jmapbox.com/.well-known/jmap`
+4. Client follows redirect and connects to JMAP API
+
+**The server handles the redirect** - the client just follows it.
+
+## DNS Setup Guide
+
+After deployment, create DNS records at your DNS provider:
+
+### 1. Certificate Validation (Temporary)
+
+```
+Name:  <from terraform output>
+Type:  CNAME
+Value: <from terraform output>
+TTL:   300
 ```
 
-One of the many nice features of TanStack Store is the ability to derive state from other state. That derived state will update when the base state updates.
+Wait 5-10 minutes for validation, then can be deleted.
 
-Let's check this out by doubling the count using derived state.
+### 2. Domain A Record
 
-```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store, Derived } from "@tanstack/store";
-import "./App.css";
-
-const countStore = new Store(0);
-
-const doubledStore = new Derived({
-  fn: () => countStore.state * 2,
-  deps: [countStore],
-});
-doubledStore.mount();
-
-function App() {
-  const count = useStore(countStore);
-  const doubledCount = useStore(doubledStore);
-
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-      <div>Doubled - {doubledCount}</div>
-    </div>
-  );
-}
-
-export default App;
+```
+Name:  your-domain.com
+Type:  A or ALIAS
+Value: <CloudFront domain from terraform output>
+TTL:   300
 ```
 
-We use the `Derived` class to create a new store that is derived from another store. The `Derived` class has a `mount` method that will start the derived store updating.
+**Note:** Some DNS providers require ALIAS records for root domains. Check your provider's documentation.
 
-Once we've created the derived store we can use it in the `App` component just like we would any other store using the `useStore` hook.
+### 3. Optional: AAAA Record (IPv6)
 
-You can find out everything you need to know on how to use TanStack Store in the [TanStack Store documentation](https://tanstack.com/store/latest).
+```
+Name:  your-domain.com
+Type:  AAAA or ALIAS
+Value: <CloudFront domain from terraform output>
+TTL:   300
+```
 
-# Demo files
+## CORS Configuration
 
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
+The web client makes direct API calls to the JMAP server. Ensure your client domain is in the server's `ALLOWED_ORIGINS`:
 
-# Learn More
+**Server config.mk:**
+```makefile
+ALLOWED_ORIGINS = https://your-client-domain.com,http://localhost:5173
+```
 
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+Then redeploy the server:
+```bash
+cd ../jmap-server
+make deploy
+```
+
+## Build
+
+Build for production:
+
+```bash
+make build
+```
+
+Output in `dist/` directory.
+
+## Clean
+
+Remove build artifacts:
+
+```bash
+make clean
+```
+
+## Troubleshooting
+
+### CORS Errors
+
+**Problem:** Browser blocks requests with CORS error.
+
+**Solution:**
+1. Verify domain is in server's `ALLOWED_ORIGINS`
+2. Redeploy server: `make deploy`
+3. Clear browser cache
+4. Check CORS headers: `curl -I -H "Origin: https://your-domain.com" https://jmap.server.com/.well-known/jmap`
+
+### Certificate Stuck on "Pending Validation"
+
+**Problem:** Certificate doesn't validate after 15 minutes.
+
+**Solution:**
+1. Verify DNS CNAME record is created correctly
+2. Check DNS propagation: `dig <validation-record-name>`
+3. Wait up to 48 hours (rare)
+4. Check terraform output for correct values
+
+### 404 Errors on Refresh
+
+**Problem:** Browser shows 404 when refreshing on a route (e.g., `/inbox`).
+
+**Solution:**
+This should be handled automatically by CloudFront custom error responses. If it persists:
+1. Verify CloudFront distribution is deployed
+2. Wait for CloudFront to propagate (5-10 minutes)
+3. Clear browser cache
+
+### API Connection Fails
+
+**Problem:** Client can't connect to JMAP server.
+
+**Solution:**
+1. Verify `JMAP_API_URL` in config.mk is correct
+2. Check server is deployed and accessible: `curl https://jmap.server.com/.well-known/jmap`
+3. Verify CORS settings on server
+4. Check browser console for specific error
+
+## Infrastructure Update
+
+To update only infrastructure (without rebuilding):
+
+```bash
+cd infrastructure
+terraform apply -var="region=<region>" -var="deployment_domain=<domain>"
+```
+
+## CloudFront Invalidation
+
+To clear CloudFront cache after deployment:
+
+```bash
+DIST_ID=$(cd infrastructure && terraform output -raw cloudfront_distribution_id)
+aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+```
+
+## Compatible Servers
+
+- [jmap-server](https://github.com/yourname/jmap-server) - Serverless JMAP server
+- Any RFC 8620 compliant JMAP server
+
+## Environment Variables
+
+Available Vite environment variables:
+
+- `VITE_API_URL` - JMAP server URL (required)
+- `VITE_ENABLE_AUTODISCOVERY` - Enable autodiscovery (optional, default: true)
+
+Set in `.env.production` or pass to build:
+
+```bash
+VITE_API_URL=https://jmap.server.com npm run build
+```
+
+## Project Structure
+
+```
+web/
+├── src/               # React application source
+├── public/            # Static assets
+├── dist/              # Build output (created by npm run build)
+├── infrastructure/    # Terraform for S3 + CloudFront
+├── config.mk          # Deployment configuration (gitignored)
+├── .env.production    # Runtime configuration (gitignored)
+└── Makefile           # Build and deployment scripts
+```
+
+## Resources
+
+- [JMAP Specification (RFC 8620)](https://jmap.io/)
+- [React Documentation](https://react.dev/)
+- [Vite Documentation](https://vitejs.dev/)
+
+## License
+
+[Your License]

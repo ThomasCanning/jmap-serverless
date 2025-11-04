@@ -1,0 +1,22 @@
+# Web Client Deployment Configuration
+# Copy this file to config.mk and edit with your values
+#
+# Usage:
+#   cp config.mk.example config.mk
+#   # Edit config.mk
+#   make deploy
+
+# AWS Region for S3 bucket
+REGION = eu-west-2
+
+# Domain to deploy web client
+# Can be:
+#   - Root domain: jmapbox.com
+#   - Subdomain: app.jmapbox.com
+#   - Different domain: otherdomain.com
+DEPLOYMENT_DOMAIN = jmapbox.com
+
+# JMAP Server URL (for API calls)
+# This must match your JMAP server deployment
+JMAP_API_URL = https://jmap.jmapbox.com
+

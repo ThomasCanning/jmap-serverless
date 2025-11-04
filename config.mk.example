@@ -3,15 +3,23 @@
 #
 # Usage:
 #   cp config.mk.example config.mk
-#   # Edit config.mk with your domain and AWS region
+#   # Edit config.mk with your domain, region, and allowed origins
 #   make deploy
 
 # AWS Region for your deployment (e.g., us-east-1, eu-west-2)
 REGION = eu-west-2
 
-# Your root domain name (will be publicly visible in DNS)
-# This domain will host:
-#   - https://your-domain.com (web UI via CloudFront)
-#   - https://jmap.your-domain.com (JMAP API)
+# Root domain (for email addresses: user@domain.com)
+# JMAP server will be deployed at:
+#   - jmap.yourdomain.com (JMAP API)
+#   - yourdomain.com/.well-known/jmap (autodiscovery redirect)
 ROOT_DOMAIN = example.com
 
+# Comma-separated allowed CORS origins
+# Add all web clients that will use this server
+# Examples:
+#   - https://yourdomain.com (web client at root)
+#   - https://app.yourdomain.com (web client at subdomain)
+#   - https://other-domain.com (web client at different domain)
+#   - http://localhost:5173 (local development)
+ALLOWED_ORIGINS = https://example.com,http://localhost:5173

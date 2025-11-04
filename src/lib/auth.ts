@@ -30,7 +30,9 @@ export function parseCookies(header: string | undefined): Record<string, string>
   header.split(';').forEach((part) => {
     const [k, ...rest] = part.trim().split('=')
     if (!k) return
-    out[k] = decodeURIComponent(rest.join('='))
+    const key = k.trim()
+    const value = rest.join('=').trim()
+    out[key] = decodeURIComponent(value)
   })
   return out
 }

@@ -4,7 +4,24 @@ dist
 dist-ssr
 *.local
 count.txt
+
+# Environment files
 .env
+.env.local
+.env.production
+.env.development.local
+
+# Build output
 .nitro
 .tanstack
 .wrangler
+
+# Config
+config.mk
+
+# Terraform
+infrastructure/.terraform/
+infrastructure/terraform.tfstate
+infrastructure/terraform.tfstate.*
+infrastructure/*.tfvars
+infrastructure/.terraform.lock.hcl
