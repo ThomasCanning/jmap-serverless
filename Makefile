@@ -1,13 +1,12 @@
-# Simple deploy: terraform apply then SAM deploy
+# JMAP Server Makefile
 #
-# User-facing targets you will typically run:
-#   - local            : Run backend (SAM) on http://localhost:3001 and frontend (Vite) on http://localhost:5173
-#   - local-backend    : Run only the backend locally (SAM API on port 3001)
-#   - local-frontend   : Run only the frontend dev server (Vite on port 5173)
-#   - deploy           : Deploy everything to AWS (requires config.mk and .env)
+# User-facing targets:
+#   - deploy           : Deploy to AWS (run twice: once to create certs, once to complete)
+#   - validate-dns     : Check DNS propagation and certificate validation status
+#   - local            : Run backend locally on http://localhost:3001
 #
-# Internal helper targets (used by other targets; you generally do not run directly):
-#   - tf-apply, sam-deploy, set-admin-password, tf-bootstrap, ensure-config
+# Internal helper targets (used by deploy; you generally do not run directly):
+#   - tf-apply, sam-deploy, set-admin-password, ensure-config
 
 -include config.mk
 -include .env
@@ -18,28 +17,176 @@ TF_DIR      ?= infrastructure
 # Derive SAM stack name from samconfig.toml if not provided via env
 STACK_NAME  ?= $(shell awk -F'=' '/^stack_name/ {gsub(/[ "\r\t]/, "", $$2); print $$2}' samconfig.toml)
 
-.PHONY: deploy tf-apply sam-deploy set-admin-password validate-password
-.PHONY: local gen-env-local
+.PHONY: deploy tf-apply sam-deploy set-admin-password validate-password validate-dns
+.PHONY: deployment-stage1-complete deployment-complete
+.PHONY: local gen-env-local ensure-config
 
 gen-env-local:
 	@STACK_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query 'Stacks[0].StackId' --output text 2>/dev/null || true); \
 	USER_POOL_CLIENT_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text 2>/dev/null || true); \
 	REG=$(REGION); API_BASE="http://localhost:3001"; \
 	printf '{\n  "wellKnownJmapFunction": {\n    "API_URL": "%s/jmap",\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "jmapFunction": {\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "authTokenFunction": {\n    "USER_POOL_CLIENT_ID": "%s",\n    "AWS_REGION": "%s"\n  },\n  "authLogoutFunction": {}\n}\n' "$$API_BASE" "$$USER_POOL_CLIENT_ID" "$$REG" "$$USER_POOL_CLIENT_ID" "$$REG" "$$USER_POOL_CLIENT_ID" "$$REG" > env.json; \
-	echo "✓ Wrote env.json (region=$(REGION), client_id=$${USER_POOL_CLIENT_ID:-<unset>})"
+	echo "Wrote env.json (region=$(REGION), client_id=$${USER_POOL_CLIENT_ID:-<unset>})"
 
 deploy: ensure-config sam-deploy set-admin-password tf-apply
 
 tf-apply:
 	@# Read SAM outputs to feed Terraform variables
-	HTTP_API_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks \
+	@HTTP_API_ID=$$(AWS_REGION=$(REGION) aws cloudformation describe-stacks \
 		--stack-name $(STACK_NAME) --query 'Stacks[0].Outputs[?OutputKey==`HttpApiId`].OutputValue' --output text); \
-	AWS_REGION=$(REGION) terraform -chdir=$(TF_DIR) init -upgrade; \
-	AWS_REGION=$(REGION) terraform -chdir=$(TF_DIR) apply \
-		-var="region=$(REGION)" \
-		-var="root_domain_name=$(ROOT_DOMAIN)" \
-		-var="sam_http_api_id=$$HTTP_API_ID" \
-		-auto-approve
+	AWS_REGION=$(REGION) terraform -chdir=$(TF_DIR) init -upgrade >/dev/null; \
+	CERTS_VALIDATED=false; \
+	if terraform -chdir=$(TF_DIR) state list 2>/dev/null | grep -q 'aws_acm_certificate.api'; then \
+		API_CERT_ARN=$$(cd $(TF_DIR) && terraform state show aws_acm_certificate.api 2>/dev/null | grep '^[[:space:]]*arn[[:space:]]*=' | head -1 | sed 's/.*= "\(.*\)"/\1/' || true); \
+		ROOT_CERT_ARN=$$(cd $(TF_DIR) && terraform state show aws_acm_certificate.root_autodiscovery 2>/dev/null | grep '^[[:space:]]*arn[[:space:]]*=' | head -1 | sed 's/.*= "\(.*\)"/\1/' || true); \
+		if [ -n "$$API_CERT_ARN" ]; then \
+			API_STATUS=$$(AWS_REGION=$(REGION) aws acm describe-certificate --certificate-arn "$$API_CERT_ARN" --query 'Certificate.Status' --output text 2>/dev/null || echo "PENDING"); \
+		else \
+			API_STATUS="NOT_FOUND"; \
+		fi; \
+		if [ -n "$$ROOT_CERT_ARN" ]; then \
+			ROOT_STATUS=$$(AWS_REGION=us-east-1 aws acm describe-certificate --certificate-arn "$$ROOT_CERT_ARN" --query 'Certificate.Status' --output text 2>/dev/null || echo "PENDING"); \
+		else \
+			ROOT_STATUS="NOT_FOUND"; \
+		fi; \
+		if [ "$$API_STATUS" = "ISSUED" ] && [ "$$ROOT_STATUS" = "ISSUED" ]; then \
+			CERTS_VALIDATED=true; \
+			echo "Certificates validated. Completing infrastructure..."; \
+		else \
+			echo "Certificate status: API=$$API_STATUS Root=$$ROOT_STATUS"; \
+		fi; \
+	fi; \
+	if [ "$$CERTS_VALIDATED" = "true" ]; then \
+		AWS_REGION=$(REGION) terraform -chdir=$(TF_DIR) apply \
+			-var="region=$(REGION)" \
+			-var="root_domain_name=$(ROOT_DOMAIN)" \
+			-var="sam_http_api_id=$$HTTP_API_ID" \
+			-var="wait_for_certificate_validation=true" \
+			-auto-approve; \
+		$(MAKE) deployment-complete; \
+	else \
+		AWS_REGION=$(REGION) terraform -chdir=$(TF_DIR) apply \
+			-var="region=$(REGION)" \
+			-var="root_domain_name=$(ROOT_DOMAIN)" \
+			-var="sam_http_api_id=$$HTTP_API_ID" \
+			-auto-approve; \
+		$(MAKE) deployment-stage1-complete; \
+	fi
+
+.PHONY: deployment-stage1-complete
+deployment-stage1-complete:
+	@# Generate DNS records file
+	@echo "Type	Name	Value	TTL" > dns-records.txt
+	@API_VALIDATION=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$(ROOT_DOMAIN)\.$$//'); \
+	API_VALUE=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"value"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$$//'); \
+	ROOT_VALIDATION=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | tail -1 | cut -d'"' -f4 | sed 's/\.$(ROOT_DOMAIN)\.$$//'); \
+	ROOT_VALUE=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"value"[[:space:]]*:[[:space:]]*"[^"]*"' | tail -1 | cut -d'"' -f4 | sed 's/\.$$//'); \
+	echo "CNAME	$$API_VALIDATION	$$API_VALUE	300" >> dns-records.txt; \
+	if [ "$$ROOT_VALIDATION" != "$$API_VALIDATION" ]; then \
+		echo "CNAME	$$ROOT_VALIDATION	$$ROOT_VALUE	300" >> dns-records.txt; \
+	fi
+	@echo ""
+	@echo "DNS setup required. Set the values in dns-records.txt at your DNS provider."
+	@echo "Wait for propagation (or check with: make validate-dns), then run: make deploy"
+	@echo ""
+
+.PHONY: deployment-complete
+deployment-complete:
+	@# Generate DNS records file
+	@API_TARGET=$$(cd $(TF_DIR) && terraform output -raw api_gateway_target 2>/dev/null); \
+	CF_TARGET=$$(cd $(TF_DIR) && terraform output -raw cloudfront_autodiscovery_target 2>/dev/null); \
+	echo "Type	Name	Value	TTL" > dns-records.txt; \
+	echo "CNAME	jmap	$$API_TARGET	300" >> dns-records.txt; \
+	echo "ALIAS	@	$$CF_TARGET	300" >> dns-records.txt; \
+	echo "SRV	_jmap._tcp	0 1 443 jmap.$(ROOT_DOMAIN)	3600" >> dns-records.txt
+	@echo ""
+	@echo "Deployment complete. Set the values in dns-records.txt at your DNS provider."
+	@echo "Wait for propagation (or check with: make validate-dns)"
+	@echo ""
+
+.PHONY: validate-dns
+validate-dns:
+	@if ! terraform -chdir=$(TF_DIR) state list 2>/dev/null | grep -q 'aws_acm_certificate.api'; then \
+		echo "Error: No certificates found. Run 'make deploy' first."; \
+		exit 1; \
+	fi
+	@echo "Checking DNS and certificate status..."; \
+	echo ""; \
+	API_DNS_OK=false; ROOT_DNS_OK=false; \
+	API_VALIDATION=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4); \
+	ROOT_VALIDATION=$$(cd $(TF_DIR) && terraform output -json cert_validation_records 2>/dev/null | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | tail -1 | cut -d'"' -f4); \
+	if [ -n "$$API_VALIDATION" ]; then \
+		if dig +short "$$API_VALIDATION" | grep -q .; then \
+			echo "[OK] API validation DNS: $$API_VALIDATION"; \
+			API_DNS_OK=true; \
+		else \
+			echo "[MISSING] API validation DNS: $$API_VALIDATION"; \
+		fi; \
+	fi; \
+	if [ -n "$$ROOT_VALIDATION" ] && [ "$$ROOT_VALIDATION" != "$$API_VALIDATION" ]; then \
+		if dig +short "$$ROOT_VALIDATION" | grep -q .; then \
+			echo "[OK] Root validation DNS: $$ROOT_VALIDATION"; \
+			ROOT_DNS_OK=true; \
+		else \
+			echo "[MISSING] Root validation DNS: $$ROOT_VALIDATION"; \
+		fi; \
+	fi; \
+	echo ""; \
+	API_CERT_ARN=$$(cd $(TF_DIR) && terraform state show aws_acm_certificate.api 2>/dev/null | grep '^[[:space:]]*arn[[:space:]]*=' | head -1 | sed 's/.*= "\(.*\)"/\1/' || true); \
+	ROOT_CERT_ARN=$$(cd $(TF_DIR) && terraform state show aws_acm_certificate.root_autodiscovery 2>/dev/null | grep '^[[:space:]]*arn[[:space:]]*=' | head -1 | sed 's/.*= "\(.*\)"/\1/' || true); \
+	API_CERT_OK=false; ROOT_CERT_OK=false; \
+	if [ -n "$$API_CERT_ARN" ]; then \
+		API_STATUS=$$(AWS_REGION=$(REGION) aws acm describe-certificate --certificate-arn "$$API_CERT_ARN" --query 'Certificate.Status' --output text 2>/dev/null || echo "UNKNOWN"); \
+		echo "API certificate ($(REGION)): $$API_STATUS"; \
+		if [ "$$API_STATUS" = "ISSUED" ]; then API_CERT_OK=true; fi; \
+	fi; \
+	if [ -n "$$ROOT_CERT_ARN" ]; then \
+		ROOT_STATUS=$$(AWS_REGION=us-east-1 aws acm describe-certificate --certificate-arn "$$ROOT_CERT_ARN" --query 'Certificate.Status' --output text 2>/dev/null || echo "UNKNOWN"); \
+		echo "Root certificate (us-east-1): $$ROOT_STATUS"; \
+		if [ "$$ROOT_STATUS" = "ISSUED" ]; then ROOT_CERT_OK=true; fi; \
+	fi; \
+	echo ""; \
+	if terraform -chdir=$(TF_DIR) state list 2>/dev/null | grep -q 'aws_apigatewayv2_domain_name.jmap'; then \
+		PERM_DNS_OK=true; \
+		if dig +short jmap.$(ROOT_DOMAIN) | grep -q .; then \
+			echo "[OK] jmap.$(ROOT_DOMAIN)"; \
+		else \
+			echo "[MISSING] jmap.$(ROOT_DOMAIN)"; \
+			PERM_DNS_OK=false; \
+		fi; \
+		if dig +short $(ROOT_DOMAIN) | grep -q .; then \
+			echo "[OK] $(ROOT_DOMAIN)"; \
+		else \
+			echo "[MISSING] $(ROOT_DOMAIN)"; \
+			PERM_DNS_OK=false; \
+		fi; \
+		if dig +short SRV _jmap._tcp.$(ROOT_DOMAIN) | grep -q .; then \
+			echo "[OK] _jmap._tcp.$(ROOT_DOMAIN)"; \
+		else \
+			echo "[MISSING] _jmap._tcp.$(ROOT_DOMAIN)"; \
+			PERM_DNS_OK=false; \
+		fi; \
+		echo ""; \
+		if [ "$$PERM_DNS_OK" = "true" ]; then \
+			echo "STATUS: All DNS records configured correctly"; \
+		else \
+			echo "STATUS: FAILED - Some permanent DNS records are missing"; \
+			echo "Action: Create missing DNS records from dns-records.txt"; \
+		fi; \
+	else \
+		if [ "$$API_DNS_OK" = "true" ] && [ "$$ROOT_DNS_OK" = "true" ] && [ "$$API_CERT_OK" = "true" ] && [ "$$ROOT_CERT_OK" = "true" ]; then \
+			echo "STATUS: READY - Certificates validated"; \
+			echo "Action: Run 'make deploy' to complete infrastructure"; \
+		else \
+			echo "STATUS: WAITING - Certificate validation in progress"; \
+			if [ "$$API_DNS_OK" = "false" ] || [ "$$ROOT_DNS_OK" = "false" ]; then \
+				echo "Action: Create missing DNS records from dns-records.txt"; \
+			else \
+				echo "Action: Wait for DNS propagation and certificate validation (5-15 minutes)"; \
+			fi; \
+		fi; \
+	fi; \
+	echo ""
 
 validate-password:
 	@if [ -z "$$ADMIN_PASSWORD" ]; then \
@@ -68,7 +215,6 @@ validate-password:
 	  echo "ERROR: Password must contain at least one number"; \
 	  exit 1; \
 	fi
-	@echo "✓ Password meets Cognito requirements"
 
 sam-deploy: validate-password
 	AWS_REGION=$(REGION) sam build
@@ -105,7 +251,7 @@ set-admin-password: validate-password
 		--username $${ADMIN_USER}@$(ROOT_DOMAIN) \
 		--region $(REGION) --query 'UserStatus' --output text 2>/dev/null); \
 	if [ "$$USER_STATUS" = "CONFIRMED" ]; then \
-	  echo "✓ Admin user already has a permanent password. Skipping reset."; \
+	  echo "Admin user already has permanent password. Skipping."; \
 	else \
 	  if AWS_REGION=$(REGION) aws cognito-idp admin-set-user-password \
 		--user-pool-id $$USER_POOL_ID \
@@ -114,10 +260,17 @@ set-admin-password: validate-password
 		--region $(REGION) \
 		--permanent \
 		--no-cli-pager 2>/dev/null; then \
-	    echo "✓ Admin password set (permanent)"; \
+	    echo "Admin password set"; \
 	  else \
-	    echo "⚠ Warning: Failed to set password."; \
-	    exit 0; \
+	    echo "ERROR: Failed to set admin password"; \
+	    echo "User status: $$USER_STATUS"; \
+	    echo "Try setting password manually:"; \
+	    echo "  AWS_REGION=$(REGION) aws cognito-idp admin-set-user-password \\"; \
+	    echo "    --user-pool-id $$USER_POOL_ID \\"; \
+	    echo "    --username $${ADMIN_USER}@$(ROOT_DOMAIN) \\"; \
+	    echo "    --password \"$$ADMIN_PASSWORD\" \\"; \
+	    echo "    --permanent"; \
+	    exit 1; \
 	  fi; \
 	fi
 
@@ -138,12 +291,8 @@ local:
 	@env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE \
 	  AWS_REGION=$(or $(REGION),eu-west-2) AWS_DEFAULT_REGION=$(or $(REGION),eu-west-2) \
 	  sam build --region $(or $(REGION),eu-west-2)
-	@echo ""
-	@echo "════════════════════════════════════════════════════════════"
-	@echo "  🚀 Starting JMAP server locally..."
-	@echo "════════════════════════════════════════════════════════════"
-	@echo "  Backend API:  http://localhost:3001"
-	@echo "  Press Ctrl+C to stop the server."
+	@echo "Starting JMAP server on http://localhost:3001"
+	@echo "Press Ctrl+C to stop"
 	@echo ""
 	@env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE \
 	  AWS_REGION=$(or $(REGION),eu-west-2) AWS_DEFAULT_REGION=$(or $(REGION),eu-west-2) AWS_EC2_METADATA_DISABLED=true \

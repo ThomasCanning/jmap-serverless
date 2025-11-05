@@ -5,7 +5,7 @@
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  jmap-serverless
+  jmap-server
 
 # Transform section specifies one or more macros that AWS CloudFormation uses to process your template
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
@@ -42,8 +42,8 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       DefaultRouteSettings:
-        ThrottlingBurstLimit: 100
-        ThrottlingRateLimit: 20
+        ThrottlingBurstLimit: 1000
+        ThrottlingRateLimit: 500
       CorsConfiguration:
         AllowMethods:
           - GET
@@ -62,7 +62,7 @@ Resources:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref UserPool
-      ClientName: jmap-serverless-client
+      ClientName: jmap-server-client
       GenerateSecret: false
       ExplicitAuthFlows:
         - ALLOW_USER_PASSWORD_AUTH
@@ -186,7 +186,7 @@ Resources:
     Type: AWS::Cognito::UserPool
     DeletionPolicy: Retain
     Properties:
-      UserPoolName: jmap-serverless-UserPool
+      UserPoolName: jmap-server-UserPool
       Policies:
         PasswordPolicy:
           MinimumLength: 8

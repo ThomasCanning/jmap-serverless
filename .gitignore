@@ -13,12 +13,13 @@ node_modules/
 .idea/
 .vscode/
 
-# Env/secrets (adjust as needed)
+# Env/secrets
 .env
 env.json
 
-# Deployment configuration (use config.mk.example as template)
+# Deployment configuration
 config.mk
+dns-records.txt
 
 node_modules
 

@@ -1,5 +1,5 @@
 {
-  "name": "jmap-serverless",
+  "name": "jmap-server",
   "description": "Serverless JMAP email server built with AWS",
   "version": "0.0.1",
   "private": true,

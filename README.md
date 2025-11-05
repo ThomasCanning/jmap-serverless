@@ -12,13 +12,13 @@ RFC 8620 compliant JMAP server with autodiscovery support.
 
 ## Features
 
-- ✅ RFC 8620 JMAP Core protocol support
-- ✅ HTTP-based autodiscovery (`.well-known/jmap`) and SRV records
-- ✅ Multiple authentication methods (Basic, Bearer tokens, refresh tokens)
-- ✅ Cookie-based sessions with automatic refresh
-- ✅ CORS support for multiple web clients
-- ✅ Fully serverless (Lambda + API Gateway)
-- ✅ External DNS support (works with any DNS provider)
+- RFC 8620 JMAP Core protocol support
+- HTTP-based autodiscovery (`.well-known/jmap`) and SRV records
+- Multiple authentication methods (Basic, Bearer tokens, refresh tokens)
+- Cookie-based sessions with automatic refresh
+- CORS support for multiple web clients
+- Fully serverless (Lambda + API Gateway)
+- External DNS support (works with any DNS provider)
 
 ## Prerequisites
 
@@ -37,117 +37,49 @@ RFC 8620 compliant JMAP server with autodiscovery support.
 npm install
 ```
 
-### 2. Configure Deployment
+### 2. Configure
 
 ```bash
+# Deployment config
 cp config.mk.example config.mk
-# Edit config.mk with:
-#   - REGION: Your AWS region
-#   - ROOT_DOMAIN: Your domain (e.g., jmapbox.com)
-#   - ALLOWED_ORIGINS: Comma-separated list of allowed client origins
-```
+# Edit: REGION, ROOT_DOMAIN, ALLOWED_ORIGINS
 
-### 3. Set Admin Credentials
-
-```bash
+# Admin credentials
 cp .env.example .env
-# Edit .env with:
-#   - ADMIN_USERNAME: Admin username (default: admin)
-#   - ADMIN_PASSWORD: Strong password (min 8 chars, uppercase, lowercase, number)
+# Edit: ADMIN_USERNAME, ADMIN_PASSWORD
 ```
 
-### 4. Configure AWS
+### 3. Deploy
 
 ```bash
-aws configure sso  # or aws configure
+aws configure sso  # Configure AWS credentials
+source .env
+make deploy       # First run: creates certificates
 ```
 
-### 5. Deploy
+Follow the on-screen instructions to create DNS records, then:
 
 ```bash
-source .env  # Load credentials
-make deploy
+make validate-dns # Optional: check if certificates are validated
+make deploy       # Second run: completes infrastructure
 ```
 
-### 6. Create DNS Records
+See [docs/DEPLOYMENT_FLOW.md](docs/DEPLOYMENT_FLOW.md) for complete instructions.
 
-After deployment, terraform will output DNS setup instructions. Create these records at your DNS provider:
+## DNS Requirements
 
-**Required DNS Records:**
-1. **Certificate Validation** (2 CNAME records, temporary)
-2. **JMAP API** (jmap.yourdomain.com → API Gateway)
-3. **Autodiscovery** (yourdomain.com → CloudFront)
-4. **SRV Record** (_jmap._tcp.yourdomain.com)
+This server requires 5 DNS records at your DNS provider:
 
-See terraform output for exact values.
+| Record | Purpose | When to Create |
+|--------|---------|----------------|
+| 2× CNAME | ACM certificate validation | Stage 1 (temporary) |
+| 1× CNAME | `jmap.yourdomain.com` → API Gateway | Stage 2 (permanent) |
+| 1× A/CNAME | `yourdomain.com` → CloudFront | Stage 2 (permanent) |
+| 1× SRV | `_jmap._tcp.yourdomain.com` | Stage 2 (permanent) |
 
-### 7. Wait & Test
+Exact values are provided in the Terraform output after each deployment stage.
 
-Wait 10-15 minutes for DNS propagation and certificate validation, then test:
-
-```bash
-# Test JMAP API
-curl https://jmap.yourdomain.com/.well-known/jmap
-
-# Test autodiscovery redirect
-curl -I https://yourdomain.com/.well-known/jmap
-# Should return: 301 redirect to jmap.yourdomain.com
-```
-
-## DNS Setup Guide
-
-This server requires DNS records at your DNS provider (not Route53). After deployment, create:
-
-### 1. ACM Certificate Validation (Temporary)
-
-Create TWO CNAME records for SSL certificate validation:
-
-```
-# For JMAP API certificate
-Name:  <shown in terraform output>
-Type:  CNAME
-Value: <shown in terraform output>
-TTL:   300
-
-# For root domain certificate
-Name:  <shown in terraform output>
-Type:  CNAME
-Value: <shown in terraform output>
-TTL:   300
-```
-
-These can be deleted after certificates validate (5-10 minutes).
-
-### 2. JMAP API Subdomain
-
-```
-Name:  jmap.yourdomain.com
-Type:  CNAME
-Value: <API Gateway target from terraform output>
-TTL:   300
-```
-
-### 3. Root Domain Autodiscovery
-
-```
-Name:  yourdomain.com
-Type:  A or CNAME
-Value: <CloudFront domain from terraform output>
-TTL:   300
-```
-
-**Note:** Some DNS providers require A records instead of CNAME for root domains. Use an ALIAS record if available, or check your provider's documentation.
-
-### 4. SRV Record (RFC 8620 Autodiscovery)
-
-```
-Name:  _jmap._tcp.yourdomain.com
-Type:  SRV
-Value: 0 1 443 jmap.yourdomain.com.
-TTL:   3600
-```
-
-**Important:** The trailing dot in the SRV record value is required.
+See [docs/DEPLOYMENT_FLOW.md](docs/DEPLOYMENT_FLOW.md) for detailed DNS setup instructions.
 
 ## Client Configuration
 
@@ -257,14 +189,14 @@ View Lambda function logs:
 
 ```bash
 # JMAP session endpoint
-sam logs -n wellKnownJmapFunction --stack-name jmap-serverless --tail
+sam logs -n wellKnownJmapFunction --stack-name jmap-server --tail
 
 # JMAP RPC endpoint
-sam logs -n jmapFunction --stack-name jmap-serverless --tail
+sam logs -n jmapFunction --stack-name jmap-server --tail
 
 # Auth endpoints
-sam logs -n authTokenFunction --stack-name jmap-serverless --tail
-sam logs -n authLogoutFunction --stack-name jmap-serverless --tail
+sam logs -n authTokenFunction --stack-name jmap-server --tail
+sam logs -n authLogoutFunction --stack-name jmap-server --tail
 ```
 
 Or via AWS Console:
@@ -272,25 +204,9 @@ Or via AWS Console:
 
 ## Troubleshooting
 
-### Certificate Validation Stuck
+### Deployment Issues
 
-**Problem:** Certificate shows "Pending validation" for >15 minutes.
-
-**Solution:**
-1. Check DNS records are created correctly
-2. Verify CNAME values match terraform output exactly
-3. Wait for DNS propagation (can take up to 48 hours in rare cases)
-4. Test DNS: `dig <validation-record-name>`
-
-### 404 on Autodiscovery Endpoint
-
-**Problem:** `https://yourdomain.com/.well-known/jmap` returns 404.
-
-**Solution:**
-1. Verify root domain DNS points to CloudFront
-2. Wait for DNS propagation (10-15 minutes)
-3. Check CloudFront distribution is deployed
-4. Test: `curl -I https://yourdomain.com/.well-known/jmap`
+For deployment-related problems (certificate validation, Terraform errors, DNS setup), see [docs/DEPLOYMENT_FLOW.md](docs/DEPLOYMENT_FLOW.md).
 
 ### CORS Errors in Web Client
 
@@ -300,19 +216,20 @@ Or via AWS Console:
 1. Add client origin to `ALLOWED_ORIGINS` in `config.mk`
 2. Redeploy: `make deploy`
 3. Clear browser cache
-4. Verify CORS headers: `curl -I -H "Origin: https://your-client.com" https://jmap.yourdomain.com/.well-known/jmap`
-
-### Certificate Validation Records
-
-If terraform output doesn't show validation records:
-
+4. Verify CORS headers:
 ```bash
-cd infrastructure
-terraform output cert_validation_records
+curl -I -H "Origin: https://your-client.com" https://jmap.yourdomain.com/.well-known/jmap
 ```
 
-Or check AWS Console:
-- ACM → Certificates → View certificate → Create records in Route53
+### API Returns 404
+
+**Problem:** `https://yourdomain.com/.well-known/jmap` returns 404.
+
+**Solution:**
+1. Verify DNS records are correct (check Terraform output)
+2. Wait 10-15 minutes for DNS propagation
+3. Test DNS: `dig yourdomain.com` and `dig jmap.yourdomain.com`
+4. Check CloudFront distribution status in AWS Console
 
 ## Cleanup
 
@@ -324,7 +241,7 @@ cd infrastructure
 terraform destroy -var="region=<region>" -var="root_domain_name=<domain>" -var="sam_http_api_id=dummy"
 
 # Delete SAM stack
-sam delete --stack-name jmap-serverless
+sam delete --stack-name jmap-server
 ```
 
 **Note:** The User Pool has `DeletionPolicy: Retain` and must be deleted manually from AWS Console if needed.
@@ -379,9 +296,10 @@ After Free Tier:
 
 ## Resources
 
-- [JMAP Specification (RFC 8620)](https://jmap.io/)
+- [Deployment Guide](docs/DEPLOYMENT_FLOW.md) - Complete deployment instructions
+- [Authentication Documentation](docs/AUTHENTICATION.md) - Auth flow details
+- [JMAP Specification (RFC 8620)](https://jmap.io/) - Protocol reference
 - [AWS SAM Developer Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
-- [Authentication Documentation](docs/AUTHENTICATION.md)
 
 ## License
 

@@ -3,7 +3,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "jmap-serverless"
+stack_name = "jmap-server"
 
 [default.build.parameters]
 cached = true
@@ -16,7 +16,7 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
-s3_prefix = "jmap-serverless"
+s3_prefix = "jmap-server"
 image_repositories = []
 
 [default.package.parameters]

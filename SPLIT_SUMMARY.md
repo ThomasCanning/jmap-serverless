@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully split the monolithic jmap-serverless repository into two completely decoupled repositories:
+Successfully split the monolithic jmap-server repository into two completely decoupled repositories:
 
 1. **jmap-server** (current repo) - Backend API with autodiscovery
 2. **jmap-web-client** (web/ directory) - Pure SPA frontend
@@ -210,14 +210,14 @@ https://jmapbox.com,https://second.com
 
 2. **Update server repo:**
    ```bash
-   cd ../jmap-serverless
+   cd ../jmap-server
    git rm -r web/
    git add -A
    git commit -m "Split: Remove web client, now in separate repo"
    ```
 
 3. **Deploy independently:**
-   - Server: `cd jmap-serverless && make deploy`
+   - Server: `cd jmap-server && make deploy`
    - Client: `cd jmap-web-client && make deploy`
 
 ## Benefits of This Architecture
