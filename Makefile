@@ -432,11 +432,12 @@ local:
 	@env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE \
 	  AWS_REGION=$(or $(REGION),eu-west-2) AWS_DEFAULT_REGION=$(or $(REGION),eu-west-2) \
 	  sam build --region $(or $(REGION),eu-west-2)
-	@echo "Starting JMAP server on http://localhost:3001"
+	@echo "Starting SAM CLI local API Gateway..."
+	@echo "JMAP server will be available at http://localhost:3001"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	@env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE \
 	  AWS_REGION=$(or $(REGION),eu-west-2) AWS_DEFAULT_REGION=$(or $(REGION),eu-west-2) AWS_EC2_METADATA_DISABLED=true \
 	  sam local start-api --region $(or $(REGION),eu-west-2) --host 127.0.0.1 --port 3001 \
-	  --env-vars env.json
+	  --env-vars env.json 2>&1 | grep -v "This is a development server" || true
 
