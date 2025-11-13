@@ -124,9 +124,49 @@ deployment-complete:
 	echo "SRV	_jmap._tcp	0 1 443 $$API_SUBDOMAIN.$(ROOT_DOMAIN)	3600" >> $(TF_DIR)/dns-records.txt
 	@$(MAKE) generate-outputs
 	@echo ""
-	@echo "Deployment complete. Set the values in $(TF_DIR)/dns-records.txt at your DNS provider."
-	@echo "Wait for propagation (or check with: make validate-dns)"
-	@echo ""
+	@# Check if DNS is already configured correctly
+	@API_SUBDOMAIN=$$(cd $(TF_DIR) && terraform output -raw api_subdomain 2>/dev/null || echo "jmap"); \
+	EXPECTED_API_TARGET=$$(cd $(TF_DIR) && terraform output -raw api_gateway_target 2>/dev/null); \
+	PERM_DNS_OK=true; \
+	if terraform -chdir=$(TF_DIR) state list 2>/dev/null | grep -q 'aws_apigatewayv2_domain_name.jmap'; then \
+		ACTUAL_API_TARGET=$$(dig +short $$API_SUBDOMAIN.$(ROOT_DOMAIN) CNAME | sed 's/\.$$//' || echo ""); \
+		if [ -z "$$ACTUAL_API_TARGET" ] || [ "$$ACTUAL_API_TARGET" != "$$EXPECTED_API_TARGET" ]; then \
+			PERM_DNS_OK=false; \
+		fi; \
+		EXPECTED_CF_TARGET=$$(cd $(TF_DIR) && terraform output -raw cloudfront_autodiscovery_target 2>/dev/null); \
+		ROOT_CNAME=$$(dig +short $(ROOT_DOMAIN) CNAME | sed 's/\.$$//' || echo ""); \
+		if [ -n "$$ROOT_CNAME" ]; then \
+			if [ "$$ROOT_CNAME" != "$$EXPECTED_CF_TARGET" ]; then \
+				PERM_DNS_OK=false; \
+			fi; \
+		else \
+			ROOT_IPS=$$(dig +short $(ROOT_DOMAIN) A | sort | tr '\n' ' '); \
+			if [ -z "$$ROOT_IPS" ]; then \
+				PERM_DNS_OK=false; \
+			else \
+				IS_CLOUDFRONT=false; \
+				for root_ip in $$ROOT_IPS; do \
+					if host $$root_ip 2>/dev/null | grep -q "cloudfront.net"; then \
+						IS_CLOUDFRONT=true; \
+						break; \
+					fi; \
+				done; \
+				if [ "$$IS_CLOUDFRONT" != "true" ]; then \
+					PERM_DNS_OK=false; \
+				fi; \
+			fi; \
+		fi; \
+		if ! dig +short SRV _jmap._tcp.$(ROOT_DOMAIN) | grep -q .; then \
+			PERM_DNS_OK=false; \
+		fi; \
+	fi; \
+	if [ "$$PERM_DNS_OK" = "true" ]; then \
+		echo "Deployment complete. DNS records are already configured correctly."; \
+	else \
+		echo "Deployment complete. Set the values in $(TF_DIR)/dns-records.txt at your DNS provider."; \
+		echo "Wait for propagation (or check with: make validate-dns)"; \
+	fi; \
+	echo ""
 
 .PHONY: validate-dns
 validate-dns:
@@ -173,17 +213,55 @@ validate-dns:
 	if terraform -chdir=$(TF_DIR) state list 2>/dev/null | grep -q 'aws_apigatewayv2_domain_name.jmap'; then \
 		PERM_DNS_OK=true; \
 		API_SUBDOMAIN=$$(cd $(TF_DIR) && terraform output -raw api_subdomain 2>/dev/null || echo "jmap"); \
-		if dig +short $$API_SUBDOMAIN.$(ROOT_DOMAIN) | grep -q .; then \
-			echo "[OK] $$API_SUBDOMAIN.$(ROOT_DOMAIN)"; \
+		EXPECTED_API_TARGET=$$(cd $(TF_DIR) && terraform output -raw api_gateway_target 2>/dev/null); \
+		ACTUAL_API_TARGET=$$(dig +short $$API_SUBDOMAIN.$(ROOT_DOMAIN) CNAME | sed 's/\.$$//' || echo ""); \
+		if [ -n "$$ACTUAL_API_TARGET" ]; then \
+			if [ "$$ACTUAL_API_TARGET" = "$$EXPECTED_API_TARGET" ]; then \
+				echo "[OK] $$API_SUBDOMAIN.$(ROOT_DOMAIN) -> $$ACTUAL_API_TARGET"; \
+			else \
+				echo "[WRONG] $$API_SUBDOMAIN.$(ROOT_DOMAIN)"; \
+				echo "        Current: $$ACTUAL_API_TARGET"; \
+				echo "        Expected: $$EXPECTED_API_TARGET"; \
+				PERM_DNS_OK=false; \
+			fi; \
 		else \
 			echo "[MISSING] $$API_SUBDOMAIN.$(ROOT_DOMAIN)"; \
 			PERM_DNS_OK=false; \
 		fi; \
-		if dig +short $(ROOT_DOMAIN) | grep -q .; then \
-			echo "[OK] $(ROOT_DOMAIN)"; \
+		EXPECTED_CF_TARGET=$$(cd $(TF_DIR) && terraform output -raw cloudfront_autodiscovery_target 2>/dev/null); \
+		ROOT_CNAME=$$(dig +short $(ROOT_DOMAIN) CNAME | sed 's/\.$$//' || echo ""); \
+		if [ -n "$$ROOT_CNAME" ]; then \
+			if [ "$$ROOT_CNAME" = "$$EXPECTED_CF_TARGET" ]; then \
+				echo "[OK] $(ROOT_DOMAIN) -> $$ROOT_CNAME"; \
+			else \
+				echo "[WRONG] $(ROOT_DOMAIN)"; \
+				echo "        Current: $$ROOT_CNAME"; \
+				echo "        Expected: $$EXPECTED_CF_TARGET"; \
+				PERM_DNS_OK=false; \
+			fi; \
 		else \
-			echo "[MISSING] $(ROOT_DOMAIN)"; \
-			PERM_DNS_OK=false; \
+			ROOT_IPS=$$(dig +short $(ROOT_DOMAIN) A | sort | tr '\n' ' '); \
+			if [ -n "$$ROOT_IPS" ]; then \
+				IS_CLOUDFRONT=false; \
+				for root_ip in $$ROOT_IPS; do \
+					if host $$root_ip 2>/dev/null | grep -q "cloudfront.net"; then \
+						IS_CLOUDFRONT=true; \
+						break; \
+					fi; \
+				done; \
+				if [ "$$IS_CLOUDFRONT" = "true" ]; then \
+					echo "[OK] $(ROOT_DOMAIN) -> $$EXPECTED_CF_TARGET (ALIAS, verified via CloudFront reverse DNS)"; \
+				else \
+					echo "[WRONG] $(ROOT_DOMAIN)"; \
+					echo "        Current IPs: $$ROOT_IPS"; \
+					echo "        Expected CloudFront: $$EXPECTED_CF_TARGET"; \
+					echo "        Note: IPs don't resolve to CloudFront (may be propagation issue)"; \
+					PERM_DNS_OK=false; \
+				fi; \
+			else \
+				echo "[MISSING] $(ROOT_DOMAIN)"; \
+				PERM_DNS_OK=false; \
+			fi; \
 		fi; \
 		if dig +short SRV _jmap._tcp.$(ROOT_DOMAIN) | grep -q .; then \
 			echo "[OK] _jmap._tcp.$(ROOT_DOMAIN)"; \
@@ -195,8 +273,8 @@ validate-dns:
 		if [ "$$PERM_DNS_OK" = "true" ]; then \
 			echo "STATUS: All DNS records configured correctly"; \
 		else \
-			echo "STATUS: FAILED - Some permanent DNS records are missing"; \
-			echo "Action: Create missing DNS records from $(TF_DIR)/dns-records.txt"; \
+			echo "STATUS: FAILED - DNS records are missing or pointing to wrong targets"; \
+			echo "Action: Update DNS records from $(TF_DIR)/dns-records.txt"; \
 		fi; \
 	else \
 		if [ "$$API_CERT_OK" = "true" ] && [ "$$ROOT_CERT_OK" = "true" ]; then \
