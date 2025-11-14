@@ -11,11 +11,13 @@ This document describes how to run and test the JMAP server locally.
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Configure environment (optional, for testing with real Cognito):
+
 ```bash
 cp .env.example .env
 # Edit .env with your AWS credentials and Cognito details
@@ -92,6 +94,7 @@ npm test -- --watch
 ### SAM Local Logs
 
 View logs from local server:
+
 ```bash
 # In another terminal while `make local` is running
 # Logs appear in the terminal running `make local`
@@ -100,6 +103,7 @@ View logs from local server:
 ### Debug Tests
 
 Use Node.js debugger:
+
 ```bash
 node --inspect-brk node_modules/.bin/jest --runInBand
 ```
@@ -113,6 +117,7 @@ The `env.json` file is automatically generated from `template.yaml` when you run
 **Note:** You don't need to manually update `env.json` when adding new functions—the script reads from `template.yaml` automatically.
 
 Key variables:
+
 - `USER_POOL_CLIENT_ID` - Cognito User Pool Client ID (fetched from deployed stack)
 - `AWS_REGION` - AWS region
 - `API_URL` - Base API URL (for session endpoint)
@@ -124,12 +129,14 @@ Key variables:
 If you see this error, it's a SAM local runtime issue. Try:
 
 1. **Clean rebuild:**
+
    ```bash
    rm -rf .aws-sam
    make local
    ```
 
 2. **Ensure you're in the project root:**
+
    ```bash
    pwd  # Should be in jmap-server directory
    ```
@@ -148,10 +155,10 @@ If you see this error, it's a SAM local runtime issue. Try:
 ## Limitations
 
 Local development has some limitations:
+
 - Uses SAM local which may behave differently than production
 - Cognito integration requires AWS credentials
 - Some AWS services may not be available locally
 - CORS may behave differently
 
 For production-like testing, deploy to a development AWS environment.
-

@@ -1,4 +1,4 @@
-import { APIGatewayProxyEventV2 } from 'aws-lambda'
+import { APIGatewayProxyEventV2 } from "aws-lambda"
 
 export function getHeader(event: APIGatewayProxyEventV2, name: string): string | undefined {
   const h = event.headers
@@ -12,11 +12,14 @@ function getAllowedOrigins(): string[] {
   if (!origins) {
     return []
   }
-  return origins.split(',').map(o => o.trim()).filter(o => o.length > 0)
+  return origins
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0)
 }
 
 function getCorsHeaders(event: APIGatewayProxyEventV2): Record<string, string> {
-  const origin = getHeader(event, 'origin')
+  const origin = getHeader(event, "origin")
   if (!origin) {
     return {}
   }
@@ -28,11 +31,11 @@ function getCorsHeaders(event: APIGatewayProxyEventV2): Record<string, string> {
   }
 
   return {
-    'Access-Control-Allow-Origin': origin,
-    'Vary': 'Origin',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "authorization, content-type",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   }
 }
 
@@ -42,7 +45,7 @@ function responseHeaders(
 ): Record<string, string> {
   const headers: Record<string, string> = {}
   if (includeContentType) {
-    headers['Content-Type'] = 'application/json'
+    headers["Content-Type"] = "application/json"
   }
   return {
     ...headers,
@@ -60,32 +63,33 @@ export function corsOnlyHeaders(event: APIGatewayProxyEventV2): Record<string, s
 
 export function parseBasicAuth(
   authorizationHeader: string | undefined
-): { ok: true; username: string; password: string } | { ok: false; statusCode: number; message: string } {
-  if (!authorizationHeader?.startsWith('Basic ')) {
-    return { ok: false, statusCode: 401, message: 'Missing Basic auth' }
+):
+  | { ok: true; username: string; password: string }
+  | { ok: false; statusCode: number; message: string } {
+  if (!authorizationHeader?.startsWith("Basic ")) {
+    return { ok: false, statusCode: 401, message: "Missing Basic auth" }
   }
 
   const base64Part = authorizationHeader.slice(6)
   // Validate base64 characters (A-Z, a-z, 0-9, +, /, =)
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Part)) {
-    return { ok: false, statusCode: 400, message: 'Invalid Base64' }
+    return { ok: false, statusCode: 400, message: "Invalid Base64" }
   }
 
   let decoded: string
   try {
-    decoded = Buffer.from(base64Part, 'base64').toString('utf8')
+    decoded = Buffer.from(base64Part, "base64").toString("utf8")
   } catch {
-    return { ok: false, statusCode: 400, message: 'Invalid Base64' }
+    return { ok: false, statusCode: 400, message: "Invalid Base64" }
   }
 
-  const sep = decoded.indexOf(':')
+  const sep = decoded.indexOf(":")
   if (sep < 0) {
-    return { ok: false, statusCode: 400, message: 'Invalid Basic format' }
+    return { ok: false, statusCode: 400, message: "Invalid Basic format" }
   }
-  
+
   const username = decoded.slice(0, sep)
   const password = decoded.slice(sep + 1)
-  
+
   return { ok: true, username, password }
 }
-

@@ -29,4 +29,3 @@
   "body": "{\"methodCalls\": [[\"Mailbox/get\", {\"accountId\": \"u1\"}, \"c1\"]]}",
   "isBase64Encoded": false
 }
-

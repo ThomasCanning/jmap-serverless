@@ -13,11 +13,13 @@ This server supports multiple clients (web, desktop, mobile) simultaneously. Eac
 Web clients must have their origin added to the `ALLOWED_ORIGINS` configuration:
 
 1. Edit `config.mk`:
+
 ```makefile
 ALLOWED_ORIGINS = https://webclient1.com,https://webclient2.com,http://localhost:5173
 ```
 
 2. Redeploy:
+
 ```bash
 make deploy
 ```
@@ -25,6 +27,7 @@ make deploy
 ### Authentication
 
 Web clients can use:
+
 - **Basic Auth** for initial login (sets cookies automatically)
 - **Cookie-based sessions** with automatic token refresh
 - **Bearer tokens** in Authorization header (if preferred)
@@ -34,23 +37,24 @@ See [AUTHENTICATION.md](AUTHENTICATION.md) for detailed authentication flows.
 ### Example Configuration
 
 For a React web client:
+
 ```typescript
-const JMAP_API_URL = 'https://jmap.yourdomain.com';
-const JMAP_SESSION_URL = `${JMAP_API_URL}/jmap/session`;
+const JMAP_API_URL = "https://jmap.yourdomain.com"
+const JMAP_SESSION_URL = `${JMAP_API_URL}/jmap/session`
 
 // Initial login
 fetch(`${JMAP_API_URL}/auth/token`, {
-  method: 'GET',
-  credentials: 'include', // Important: include cookies
+  method: "GET",
+  credentials: "include", // Important: include cookies
   headers: {
-    'Authorization': `Basic ${btoa('user@yourdomain.com:password')}`
-  }
-});
+    Authorization: `Basic ${btoa("user@yourdomain.com:password")}`,
+  },
+})
 
 // Subsequent requests (cookies sent automatically)
 fetch(JMAP_SESSION_URL, {
-  credentials: 'include'
-});
+  credentials: "include",
+})
 ```
 
 ## Desktop/Mobile Clients
@@ -58,6 +62,7 @@ fetch(JMAP_SESSION_URL, {
 ### Direct Connection
 
 Configure clients to connect directly to:
+
 ```
 https://jmap.yourdomain.com
 ```
@@ -65,6 +70,7 @@ https://jmap.yourdomain.com
 ### Autodiscovery
 
 Clients can use autodiscovery with:
+
 - **Email**: `user@yourdomain.com`
 - Client will autodiscover via:
   1. SRV record: `_jmap._tcp.yourdomain.com`
@@ -73,6 +79,7 @@ Clients can use autodiscovery with:
 ### Authentication
 
 Desktop/mobile clients should use:
+
 - **Basic Auth** for initial authentication
 - **Bearer tokens** for subsequent requests
 - Clients must manage token refresh manually (no automatic refresh for header-based auth)
@@ -80,6 +87,7 @@ Desktop/mobile clients should use:
 ### Example Configuration
 
 For a desktop client:
+
 ```bash
 # Get access token
 TOKEN=$(curl -s https://jmap.yourdomain.com/auth/token \
@@ -95,11 +103,13 @@ curl https://jmap.yourdomain.com/jmap/session \
 ### SRV Record Method
 
 Clients query DNS for:
+
 ```
 _jmap._tcp.yourdomain.com
 ```
 
 Response:
+
 ```
 _jmap._tcp.yourdomain.com. 300 IN SRV 0 0 443 jmap.yourdomain.com.
 ```
@@ -109,11 +119,13 @@ Client connects to: `https://jmap.yourdomain.com`
 ### HTTP Redirect Method
 
 Client requests:
+
 ```
 GET https://yourdomain.com/.well-known/jmap
 ```
 
 Response:
+
 ```
 HTTP/1.1 301 Moved Permanently
 Location: https://jmap.yourdomain.com/jmap/session
@@ -163,4 +175,3 @@ See [API_EXAMPLES.md](API_EXAMPLES.md) for example commands.
 - Check CloudFront distribution status in AWS Console
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more details.
-

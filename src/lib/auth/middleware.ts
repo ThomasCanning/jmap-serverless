@@ -1,18 +1,18 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda'
-import { AuthenticatedContext, HandlerFunction, AuthResult, isAuthenticatedContext } from './types'
-import { getHeader, jsonResponseHeaders, parseBasicAuth } from './headers'
-import { getTokenFromCookies } from './cookies'
-import { setAuthCookies } from './cookies'
-import { verifyBearerFromEvent } from './verification'
-import { authenticate, refresh } from './cognito'
-import { createAuthErrorResponse } from './responses'
-import { validateEnvVar } from '../env'
-import { decodeJwt } from 'jose'
+import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { AuthenticatedContext, HandlerFunction, AuthResult, isAuthenticatedContext } from "./types"
+import { getHeader, jsonResponseHeaders, parseBasicAuth } from "./headers"
+import { getTokenFromCookies } from "./cookies"
+import { setAuthCookies } from "./cookies"
+import { verifyBearerFromEvent } from "./verification"
+import { authenticate, refresh } from "./cognito"
+import { createAuthErrorResponse } from "./responses"
+import { validateEnvVar } from "../env"
+import { decodeJwt } from "jose"
 
 function extractUsernameFromToken(token: string): string | undefined {
   try {
     const decoded = decodeJwt(token)
-    return (decoded.username || decoded['cognito:username'] || decoded.sub) as string | undefined
+    return (decoded.username || decoded["cognito:username"] || decoded.sub) as string | undefined
   } catch {
     return undefined
   }
@@ -47,7 +47,7 @@ async function tryRefreshToken(
   event: APIGatewayProxyEventV2,
   clientId: string
 ): Promise<AuthResult | null> {
-  const refreshToken = getTokenFromCookies(event, 'refresh_token')
+  const refreshToken = getTokenFromCookies(event, "refresh_token")
   if (!refreshToken) {
     return null
   }
@@ -60,16 +60,18 @@ async function tryRefreshToken(
   return null
 }
 
-type BasicAuthResult = AuthResult | { ok: false; statusCode: 401; message: string; skipBasicAuth: true }
+type BasicAuthResult =
+  | AuthResult
+  | { ok: false; statusCode: 401; message: string; skipBasicAuth: true }
 
 async function tryBasicAuth(
   event: APIGatewayProxyEventV2,
   clientId: string
 ): Promise<BasicAuthResult> {
-  const authzHeader = getHeader(event, 'authorization')
-  
-  if (authzHeader?.startsWith('Bearer ')) {
-    return { ok: false, statusCode: 401, message: 'Bearer token provided', skipBasicAuth: true }
+  const authzHeader = getHeader(event, "authorization")
+
+  if (authzHeader?.startsWith("Bearer ")) {
+    return { ok: false, statusCode: 401, message: "Bearer token provided", skipBasicAuth: true }
   }
 
   const basicAuth = parseBasicAuth(authzHeader)
@@ -80,12 +82,16 @@ async function tryBasicAuth(
   return await authenticate(basicAuth.username, basicAuth.password, clientId)
 }
 
-function isNoAuthProvided(authResult: AuthResult, basicResult: BasicAuthResult, authzHeader: string | undefined): boolean {
+function isNoAuthProvided(
+  authResult: AuthResult,
+  basicResult: BasicAuthResult,
+  authzHeader: string | undefined
+): boolean {
   return (
     !authResult.ok &&
-    authResult.message === 'Missing Bearer token' &&
+    authResult.message === "Missing Bearer token" &&
     !basicResult.ok &&
-    basicResult.message === 'Missing Basic auth' &&
+    basicResult.message === "Missing Basic auth" &&
     !authzHeader
   )
 }
@@ -95,9 +101,9 @@ async function handleRefreshFlow(
   clientId: string,
   handler: HandlerFunction
 ): Promise<APIGatewayProxyStructuredResultV2 | null> {
-  const tokenSourceWasCookie = !!getTokenFromCookies(event, 'access_token')
-  const hasRefreshToken = !!getTokenFromCookies(event, 'refresh_token')
-  
+  const tokenSourceWasCookie = !!getTokenFromCookies(event, "access_token")
+  const hasRefreshToken = !!getTokenFromCookies(event, "refresh_token")
+
   if (!tokenSourceWasCookie && !hasRefreshToken) {
     return null
   }
@@ -106,7 +112,12 @@ async function handleRefreshFlow(
   if (refreshed && isAuthenticatedContext(refreshed)) {
     const authWithUsername = ensureUsername(refreshed)
     const handlerResponse = await handler(event, authWithUsername)
-    return buildResponseWithCookies(handlerResponse, event, refreshed.bearerToken, refreshed.refreshToken)
+    return buildResponseWithCookies(
+      handlerResponse,
+      event,
+      refreshed.bearerToken,
+      refreshed.refreshToken
+    )
   }
 
   return null
@@ -119,23 +130,23 @@ async function handleBasicAuthFlow(
   handler: HandlerFunction
 ): Promise<APIGatewayProxyStructuredResultV2 | null> {
   const basic = await tryBasicAuth(event, clientId)
-  
-  if (basic.ok === false && 'skipBasicAuth' in basic && basic.skipBasicAuth) {
+
+  if (basic.ok === false && "skipBasicAuth" in basic && basic.skipBasicAuth) {
     return null // Bearer was provided but invalid, don't try Basic
   }
-  
+
   if (isAuthenticatedContext(basic) && basic.bearerToken) {
     const authWithUsername = ensureUsername(basic)
     const handlerResponse = await handler(event, authWithUsername)
     return buildResponseWithCookies(handlerResponse, event, basic.bearerToken, basic.refreshToken)
   }
 
-  const authzHeader = getHeader(event, 'authorization')
+  const authzHeader = getHeader(event, "authorization")
   if (isNoAuthProvided(bearerAuthResult, basic, authzHeader)) {
     return createAuthErrorResponse(
       event,
       401,
-      'No authentication method provided. Call /auth/login with username and password to get an access token, or use Basic auth with the Authorization header.'
+      "No authentication method provided. Call /auth/login with username and password to get an access token, or use Basic auth with the Authorization header."
     )
   }
 
@@ -143,7 +154,7 @@ async function handleBasicAuthFlow(
     return createAuthErrorResponse(event, basic.statusCode, basic.message)
   }
 
-  if (authzHeader?.startsWith('Bearer ') && !bearerAuthResult.ok) {
+  if (authzHeader?.startsWith("Bearer ") && !bearerAuthResult.ok) {
     return createAuthErrorResponse(event, bearerAuthResult.statusCode, bearerAuthResult.message)
   }
 
@@ -170,7 +181,7 @@ export function withAuth(
 ): (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyStructuredResultV2> {
   return async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
     try {
-      const clientIdResult = validateEnvVar('USER_POOL_CLIENT_ID', process.env.USER_POOL_CLIENT_ID)
+      const clientIdResult = validateEnvVar("USER_POOL_CLIENT_ID", process.env.USER_POOL_CLIENT_ID)
       if (!clientIdResult.ok) {
         return createAuthErrorResponse(event, clientIdResult.statusCode, clientIdResult.message)
       }
@@ -178,7 +189,7 @@ export function withAuth(
 
       // Try Bearer token first
       const bearerAuthResult = await verifyBearerFromEvent(event, clientId)
-      
+
       if (isAuthenticatedContext(bearerAuthResult)) {
         return await handleBearerSuccess(event, bearerAuthResult, handler)
       }
@@ -196,22 +207,22 @@ export function withAuth(
       }
 
       // Fallback: unexpected state
-      console.error('[auth] Unexpected auth state in withAuth', {
+      console.error("[auth] Unexpected auth state in withAuth", {
         path: event.requestContext?.http?.path,
         method: event.requestContext?.http?.method,
         authResultOk: bearerAuthResult.ok,
       })
-      return createAuthErrorResponse(event, 401, 'Unauthorized')
+      return createAuthErrorResponse(event, 401, "Unauthorized")
     } catch (error) {
       const err = error as Error
-      console.error('[auth] Handler error', {
+      console.error("[auth] Handler error", {
         path: event.requestContext?.http?.path,
         method: event.requestContext?.http?.method,
         error: err.message,
         errorName: err.name,
         stack: err.stack,
       })
-      return createAuthErrorResponse(event, 500, 'Internal server error')
+      return createAuthErrorResponse(event, 500, "Internal server error")
     }
   }
 }

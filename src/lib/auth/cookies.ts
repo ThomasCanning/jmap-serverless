@@ -1,5 +1,5 @@
-import { APIGatewayProxyEventV2 } from 'aws-lambda'
-import { getHeader } from './headers'
+import { APIGatewayProxyEventV2 } from "aws-lambda"
+import { getHeader } from "./headers"
 
 // Cookie configuration constants
 const ACCESS_TOKEN_MAX_AGE = 3600 // 1 hour (matches Cognito access token lifetime)
@@ -9,13 +9,13 @@ const MAX_TOKEN_LENGTH = 8192
 export function parseCookies(header: string | undefined): Record<string, string> {
   if (!header) return {}
   const out: Record<string, string> = {}
-  header.split(';').forEach((part) => {
-    const [k, ...rest] = part.trim().split('=')
+  header.split(";").forEach((part) => {
+    const [k, ...rest] = part.trim().split("=")
     if (!k) return
     const key = k.trim()
-    const value = rest.join('=').trim()
+    const value = rest.join("=").trim()
     try {
-    out[key] = decodeURIComponent(value)
+      out[key] = decodeURIComponent(value)
     } catch {
       // Invalid URL encoding, skip this cookie
     }
@@ -33,7 +33,7 @@ export function getTokenFromCookies(
       const value = cookie.substring(`${tokenName}=`.length)
       if (value && value.trim().length > 0 && value.length <= MAX_TOKEN_LENGTH) {
         try {
-        return decodeURIComponent(value)
+          return decodeURIComponent(value)
         } catch {
           // Invalid URL encoding, skip this cookie
           continue
@@ -42,7 +42,7 @@ export function getTokenFromCookies(
     }
   }
 
-  const cookieHeader = getHeader(event, 'cookie')
+  const cookieHeader = getHeader(event, "cookie")
   if (cookieHeader) {
     const cookies = parseCookies(cookieHeader)
     const value = cookies[tokenName]
@@ -57,39 +57,36 @@ export function getTokenFromCookies(
 export function accessTokenCookie(token: string): string {
   const attrs = [
     `access_token=${encodeURIComponent(token)}`,
-    'HttpOnly',
-    'Secure',
-    'SameSite=Lax',
-    'Path=/',
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    "Path=/",
     `Max-Age=${ACCESS_TOKEN_MAX_AGE}`,
   ]
-  return attrs.join('; ')
+  return attrs.join("; ")
 }
 
 export function clearAccessTokenCookie(): string {
-  return 'access_token=deleted; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0'
+  return "access_token=deleted; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
 }
 
 export function refreshTokenCookie(token: string): string {
   const attrs = [
     `refresh_token=${encodeURIComponent(token)}`,
-    'HttpOnly',
-    'Secure',
-    'SameSite=Lax',
-    'Path=/',
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    "Path=/",
     `Max-Age=${REFRESH_TOKEN_MAX_AGE}`,
   ]
-  return attrs.join('; ')
+  return attrs.join("; ")
 }
 
 export function clearRefreshTokenCookie(): string {
-  return 'refresh_token=deleted; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0'
+  return "refresh_token=deleted; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
 }
 
-export function setAuthCookies(
-  accessToken?: string,
-  refreshToken?: string
-): string[] {
+export function setAuthCookies(accessToken?: string, refreshToken?: string): string[] {
   const cookies: string[] = []
   if (accessToken) {
     cookies.push(accessTokenCookie(accessToken))
@@ -99,4 +96,3 @@ export function setAuthCookies(
   }
   return cookies
 }
-

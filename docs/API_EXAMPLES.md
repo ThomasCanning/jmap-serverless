@@ -5,6 +5,7 @@ This document provides example commands for interacting with the JMAP server API
 ## Base URL
 
 Replace `jmapbox.com` with your domain:
+
 - API: `https://jmap.jmapbox.com`
 - Autodiscovery: `https://jmapbox.com`
 

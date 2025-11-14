@@ -34,15 +34,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture infor
 ## Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Configure:**
+
    ```bash
    cp config.mk.example config.mk
    # Edit: REGION, ROOT_DOMAIN, ALLOWED_ORIGINS
-   
+
    cp .env.example .env
    # Edit: ADMIN_USERNAME, ADMIN_PASSWORD
    ```
@@ -68,11 +70,13 @@ See [docs/DEPLOYMENT_FLOW.md](docs/DEPLOYMENT_FLOW.md) for complete deployment i
 ## Testing
 
 Run unit tests:
+
 ```bash
 npm test
 ```
 
 Run specific test:
+
 ```bash
 npm test -- auth.test.ts
 ```
@@ -80,6 +84,7 @@ npm test -- auth.test.ts
 ## Logs
 
 View Lambda function logs:
+
 ```bash
 sam logs -n jmapSessionFunction --stack-name jmap-server --tail
 sam logs -n jmapFunction --stack-name jmap-server --tail
@@ -93,6 +98,7 @@ Or via AWS Console: CloudWatch → Log groups → `/aws/lambda/<function-name>`
 ## Cleanup
 
 Delete the application:
+
 ```bash
 # Delete terraform resources
 cd infrastructure

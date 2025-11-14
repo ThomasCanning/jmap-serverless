@@ -1,6 +1,6 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda'
-import { jsonResponseHeaders } from './headers'
-import { AuthResult } from './types'
+import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { jsonResponseHeaders } from "./headers"
+import { AuthResult } from "./types"
 
 export function createAuthErrorResponse(
   event: APIGatewayProxyEventV2,
@@ -21,6 +21,5 @@ export function handleAuthError(
   if (!result.ok) {
     return createAuthErrorResponse(event, result.statusCode, result.message)
   }
-  throw new Error('handleAuthError called with success result')
+  throw new Error("handleAuthError called with success result")
 }
-

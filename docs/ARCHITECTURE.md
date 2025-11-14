@@ -87,11 +87,13 @@ The server is a fully serverless JMAP implementation built on AWS, compliant wit
 The server implements both RFC 8620 autodiscovery methods:
 
 ### 1. SRV Record (DNS-based)
+
 ```
 _jmap._tcp.yourdomain.com → jmap.yourdomain.com:443
 ```
 
 ### 2. HTTP Redirect (Well-known URL)
+
 ```
 https://yourdomain.com/.well-known/jmap
   → 301 redirect to
@@ -103,12 +105,14 @@ Clients can use either method to discover the JMAP server.
 ## Cost Estimate
 
 ### Free Tier (First 12 Months)
+
 - **Lambda**: 1M requests/month free
 - **API Gateway**: 1M requests/month free
 - **CloudFront**: 1TB transfer/month free
 - **Cognito**: 50,000 MAU (Monthly Active Users) free
 
 ### After Free Tier
+
 - **Light Usage**: ~$0.01-0.10/month
 - **Scales**: With request volume
 
@@ -123,4 +127,3 @@ Clients can use either method to discover the JMAP server.
 - JWT tokens verified against Cognito JWKS
 - CORS restricted to configured origins
 - Rate limiting at API Gateway level
-

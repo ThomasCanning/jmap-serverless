@@ -7,4 +7,3 @@ export function validateEnvVar(
   }
   return { ok: true, value: value.trim() }
 }
-
