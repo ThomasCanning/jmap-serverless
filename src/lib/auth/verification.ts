@@ -1,8 +1,34 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda"
-import { jwtVerify, createRemoteJWKSet, decodeJwt } from "jose"
+import { CognitoJwtVerifier } from "aws-jwt-verify"
+import { decodeJwt } from "jose"
 import { AuthResult } from "./types"
 import { getHeader } from "./headers"
 import { getTokenFromCookies } from "./cookies"
+
+// Cache verifier instances per userPoolId+clientId combination
+const verifierCache = new Map<string, ReturnType<typeof CognitoJwtVerifier.create>>()
+
+function extractUserPoolId(issuer: string): string | null {
+  // Issuer format: https://cognito-idp.{region}.amazonaws.com/{userPoolId}
+  const match = issuer.match(/https:\/\/cognito-idp\.[^/]+\/(.+)/)
+  return match ? match[1] : null
+}
+
+function getVerifier(userPoolId: string, userPoolClientId: string) {
+  const cacheKey = `${userPoolId}:${userPoolClientId}`
+  let verifier = verifierCache.get(cacheKey)
+  if (!verifier) {
+    // Create verifier that validates access tokens
+    // It automatically handles JWKS fetching, signature verification, issuer validation, and expiration
+    verifier = CognitoJwtVerifier.create({
+      userPoolId,
+      tokenUse: "access",
+      clientId: userPoolClientId,
+    })
+    verifierCache.set(cacheKey, verifier)
+  }
+  return verifier
+}
 
 export async function verifyBearerFromEvent(
   event: APIGatewayProxyEventV2,
@@ -22,63 +48,23 @@ export async function verifyBearerFromEvent(
   }
 
   try {
-    let iss: string
-    try {
-      const decoded = decodeJwt(token)
-
-      const issuerClaim = decoded.iss
-      if (!issuerClaim || typeof issuerClaim !== "string") {
-        return { ok: false, statusCode: 400, message: "Missing iss" }
-      }
-
-      if (
-        !issuerClaim.startsWith("https://cognito-idp.") ||
-        !issuerClaim.endsWith(".amazonaws.com")
-      ) {
-        return { ok: false, statusCode: 401, message: "Invalid token issuer" }
-      }
-
-      iss = issuerClaim
-    } catch (e) {
-      const err = e as Error
-      console.error("[auth] JWT decode error", {
-        error: err.message,
-        errorName: err.name,
-      })
-      return { ok: false, statusCode: 401, message: "Invalid token" }
+    // Extract userPoolId from token's issuer claim
+    const decoded = decodeJwt(token)
+    const issuer = decoded.iss
+    if (!issuer || typeof issuer !== "string") {
+      return { ok: false, statusCode: 400, message: "Missing issuer claim" }
     }
 
-    const JWKS = createRemoteJWKSet(new URL(`${iss}/.well-known/jwks.json`))
-    const { payload: claims } = await jwtVerify(token, JWKS, {
-      issuer: iss,
-    })
-
-    const tokenUse = claims.token_use
-    const clientIdClaim = claims.client_id
-    const audienceClaim = claims.aud
-
-    if (tokenUse === "access") {
-      if (clientIdClaim !== userPoolClientId) {
-        return { ok: false, statusCode: 401, message: "Invalid token" }
-      }
-    } else if (tokenUse === "id" || audienceClaim) {
-      // ID tokens use 'aud' claim - handle string, array, or undefined
-      if (typeof audienceClaim === "string") {
-        if (audienceClaim !== userPoolClientId) {
-          return { ok: false, statusCode: 401, message: "Invalid token" }
-        }
-      } else if (Array.isArray(audienceClaim)) {
-        if (!audienceClaim.includes(userPoolClientId)) {
-          return { ok: false, statusCode: 401, message: "Invalid token" }
-        }
-      } else {
-        return { ok: false, statusCode: 401, message: "Invalid token" }
-      }
-    } else {
-      return { ok: false, statusCode: 401, message: "Invalid token" }
+    const userPoolId = extractUserPoolId(issuer)
+    if (!userPoolId) {
+      return { ok: false, statusCode: 401, message: "Invalid token issuer format" }
     }
 
-    return { ok: true, claims, bearerToken: token }
+    const verifier = getVerifier(userPoolId, userPoolClientId)
+    // Verify token: checks signature, issuer, expiration, client ID, and token use
+    const payload = await verifier.verify(token)
+
+    return { ok: true, claims: payload, bearerToken: token }
   } catch (e) {
     const err = e as Error
     console.error("[auth] Token verification failed", {

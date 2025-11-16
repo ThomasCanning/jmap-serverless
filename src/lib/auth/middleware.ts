@@ -132,7 +132,11 @@ async function handleBasicAuthFlow(
   const basic = await tryBasicAuth(event, clientId)
 
   if (basic.ok === false && "skipBasicAuth" in basic && basic.skipBasicAuth) {
-    return null // Bearer was provided but invalid, don't try Basic
+    // Bearer token was provided but invalid - return the Bearer error message
+    if (!bearerAuthResult.ok) {
+      return createAuthErrorResponse(event, bearerAuthResult.statusCode, bearerAuthResult.message)
+    }
+    return null
   }
 
   if (isAuthenticatedContext(basic) && basic.bearerToken) {

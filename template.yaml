@@ -92,7 +92,7 @@ Resources:
       DesiredDeliveryMediums: []
       ForceAliasCreation: false
 
-  # JMAP API ENDPOINTS
+  # JMAP ENDPOINTS
   jmapSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
