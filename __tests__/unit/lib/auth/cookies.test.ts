@@ -110,7 +110,7 @@ describe("cookies", () => {
       expect(cookie).toContain("access_token=")
       expect(cookie).toContain("HttpOnly")
       expect(cookie).toContain("Secure")
-      expect(cookie).toContain("SameSite=Lax")
+      expect(cookie).toContain("SameSite=None")
       expect(cookie).toContain("Path=/")
       expect(cookie).toContain("Max-Age=3600")
     })
@@ -135,7 +135,7 @@ describe("cookies", () => {
       expect(cookie).toContain("refresh_token=")
       expect(cookie).toContain("HttpOnly")
       expect(cookie).toContain("Secure")
-      expect(cookie).toContain("SameSite=Lax")
+      expect(cookie).toContain("SameSite=None")
       expect(cookie).toContain("Path=/")
       expect(cookie).toContain("Max-Age=2592000") // 30 days
     })

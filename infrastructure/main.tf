@@ -79,12 +79,12 @@ resource "aws_apigatewayv2_api_mapping" "jmap" {
 # CloudFront Autodiscovery (domain.com/.well-known/jmap)
 ########################
 
-# CloudFront function for JMAP autodiscovery redirect with CORS support
+# CloudFront function for JMAP autodiscovery redirect
 resource "aws_cloudfront_function" "autodiscovery_redirect" {
   name    = "jmap-autodiscovery-redirect"
   runtime = "cloudfront-js-1.0"
   publish = true
-  comment = "RFC 8620 JMAP autodiscovery redirect with CORS - redirects /.well-known/jmap to /jmap/session, returns 404 for other paths when S3 disabled"
+  comment = "RFC 8620 JMAP autodiscovery redirect - redirects /.well-known/jmap to /jmap/session, returns 404 for other paths when S3 disabled"
   code    = <<-EOT
     function handler(event) {
       var request = event.request;
