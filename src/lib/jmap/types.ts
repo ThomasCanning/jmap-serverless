@@ -73,3 +73,9 @@ export type Request = {
   methodCalls: Invocation[]
   createdIds?: Record<Id, Id> // map from client specified creation id to the id the server assigned when a record was successfully created
 }
+
+export type Response = {
+  methodResponses: Invocation[]
+  createdIds?: Record<Id, Id>
+  sessionState: string
+}
