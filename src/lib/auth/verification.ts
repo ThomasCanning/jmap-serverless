@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
 import { decodeJwt } from "jose"
 import { AuthResult } from "./types"
@@ -44,7 +45,7 @@ export async function verifyBearerFromEvent(
   }
 
   if (!token) {
-    return { ok: false, statusCode: 401, message: "Missing Bearer token" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Missing Bearer token" }
   }
 
   try {
@@ -52,12 +53,16 @@ export async function verifyBearerFromEvent(
     const decoded = decodeJwt(token)
     const issuer = decoded.iss
     if (!issuer || typeof issuer !== "string") {
-      return { ok: false, statusCode: 400, message: "Missing issuer claim" }
+      return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Missing issuer claim" }
     }
 
     const userPoolId = extractUserPoolId(issuer)
     if (!userPoolId) {
-      return { ok: false, statusCode: 401, message: "Invalid token issuer format" }
+      return {
+        ok: false,
+        statusCode: StatusCodes.UNAUTHORIZED,
+        message: "Invalid token issuer format",
+      }
     }
 
     const verifier = getVerifier(userPoolId, userPoolClientId)
@@ -73,6 +78,6 @@ export async function verifyBearerFromEvent(
       path: event.requestContext?.http?.path,
       method: event.requestContext?.http?.method,
     })
-    return { ok: false, statusCode: 401, message: "Invalid token" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Invalid token" }
   }
 }

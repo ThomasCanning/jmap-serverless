@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 import { AuthenticatedContext, HandlerFunction, AuthResult, isAuthenticatedContext } from "./types"
 import { getHeader, jsonResponseHeaders, parseBasicAuth } from "./headers"
 import { getTokenFromCookies } from "./cookies"
@@ -62,7 +63,7 @@ async function tryRefreshToken(
 
 type BasicAuthResult =
   | AuthResult
-  | { ok: false; statusCode: 401; message: string; skipBasicAuth: true }
+  | { ok: false; statusCode: StatusCodes.UNAUTHORIZED; message: string; skipBasicAuth: true }
 
 async function tryBasicAuth(
   event: APIGatewayProxyEventV2,
@@ -71,7 +72,12 @@ async function tryBasicAuth(
   const authzHeader = getHeader(event, "authorization")
 
   if (authzHeader?.startsWith("Bearer ")) {
-    return { ok: false, statusCode: 401, message: "Bearer token provided", skipBasicAuth: true }
+    return {
+      ok: false,
+      statusCode: StatusCodes.UNAUTHORIZED,
+      message: "Bearer token provided",
+      skipBasicAuth: true,
+    }
   }
 
   const basicAuth = parseBasicAuth(authzHeader)
@@ -149,7 +155,7 @@ async function handleBasicAuthFlow(
   if (isNoAuthProvided(bearerAuthResult, basic, authzHeader)) {
     return createAuthErrorResponse(
       event,
-      401,
+      StatusCodes.UNAUTHORIZED,
       "No authentication method provided. Call /auth/login with username and password to get an access token, or use Basic auth with the Authorization header."
     )
   }
@@ -216,7 +222,7 @@ export function withAuth(
         method: event.requestContext?.http?.method,
         authResultOk: bearerAuthResult.ok,
       })
-      return createAuthErrorResponse(event, 401, "Unauthorized")
+      return createAuthErrorResponse(event, StatusCodes.UNAUTHORIZED, "Unauthorized")
     } catch (error) {
       const err = error as Error
       console.error("[auth] Handler error", {
@@ -226,7 +232,11 @@ export function withAuth(
         errorName: err.name,
         stack: err.stack,
       })
-      return createAuthErrorResponse(event, 500, "Internal server error")
+      return createAuthErrorResponse(
+        event,
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        "Internal server error"
+      )
     }
   }
 }

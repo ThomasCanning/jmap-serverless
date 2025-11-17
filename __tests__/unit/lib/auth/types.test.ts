@@ -1,4 +1,5 @@
 import { isAuthenticatedContext, AuthResult } from "../../../../src/lib/auth/types"
+import { StatusCodes } from "http-status-codes"
 
 describe("types", () => {
   describe("isAuthenticatedContext", () => {
@@ -8,7 +9,11 @@ describe("types", () => {
     })
 
     it("returns false for error result", () => {
-      const result: AuthResult = { ok: false, statusCode: 401, message: "Unauthorized" }
+      const result: AuthResult = {
+        ok: false,
+        statusCode: StatusCodes.UNAUTHORIZED,
+        message: "Unauthorized",
+      }
       expect(isAuthenticatedContext(result)).toBe(false)
     })
 

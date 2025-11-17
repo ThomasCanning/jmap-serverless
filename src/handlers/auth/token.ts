@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 import {
   authenticateRequest,
   handleAuthError,
@@ -16,7 +17,7 @@ export const handler = async (
   }
 
   return {
-    statusCode: 200,
+    statusCode: StatusCodes.OK,
     headers: jsonResponseHeaders(event),
     body: JSON.stringify({
       accessToken: result.bearerToken,

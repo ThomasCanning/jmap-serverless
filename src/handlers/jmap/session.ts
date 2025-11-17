@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 import { withAuth, jsonResponseHeaders, createAuthErrorResponse } from "../../lib/auth"
 import { validateEnvVar } from "../../lib/env"
 import {
@@ -64,7 +65,7 @@ export const sessionHandler = withAuth(
 
     //TODO check this
     return {
-      statusCode: 200,
+      statusCode: StatusCodes.OK,
       headers: jsonResponseHeaders(event),
       body: JSON.stringify(session),
     }

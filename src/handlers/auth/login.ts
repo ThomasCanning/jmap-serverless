@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 import {
   authenticateRequest,
   handleAuthError,
@@ -18,7 +19,7 @@ export const handler = async (
 
   const cookieHeaders = setAuthCookies(result.bearerToken, result.refreshToken)
   return {
-    statusCode: 200,
+    statusCode: StatusCodes.OK,
     headers: jsonResponseHeaders(event),
     cookies: cookieHeaders,
     body: JSON.stringify({ success: true }),

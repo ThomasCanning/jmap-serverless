@@ -2,6 +2,7 @@ import { APIGatewayProxyEventV2 } from "aws-lambda"
 import { sessionHandler } from "../../../../src/handlers/jmap/session"
 import { createBaseEvent } from "../../lib/auth/__setup__"
 import { HandlerFunction } from "../../../../src/lib/auth/types"
+import { StatusCodes } from "http-status-codes"
 
 // Mock withAuth to bypass authentication
 jest.mock("../../../../src/lib/auth", () => {
@@ -41,7 +42,7 @@ describe("sessionHandler", () => {
 
     const res = await sessionHandler(event)
 
-    expect(res.statusCode).toBe(200)
+    expect(res.statusCode).toBe(StatusCodes.OK)
     expect(res.headers?.["Content-Type"]).toBe("application/json")
     const body = JSON.parse(res.body!)
     expect(body).toEqual({
@@ -86,7 +87,7 @@ describe("sessionHandler", () => {
 
     const res = await sessionHandler(event)
 
-    expect(res.statusCode).toBe(500)
+    expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
     const body = JSON.parse(res.body!)
     expect(body.error).toContain("API_URL")
   })

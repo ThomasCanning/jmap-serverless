@@ -1,4 +1,5 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda"
+import { StatusCodes } from "http-status-codes"
 
 export function getHeader(event: APIGatewayProxyEventV2, name: string): string | undefined {
   const h = event.headers
@@ -67,25 +68,25 @@ export function parseBasicAuth(
   | { ok: true; username: string; password: string }
   | { ok: false; statusCode: number; message: string } {
   if (!authorizationHeader?.startsWith("Basic ")) {
-    return { ok: false, statusCode: 401, message: "Missing Basic auth" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Missing Basic auth" }
   }
 
   const base64Part = authorizationHeader.slice(6)
   // Validate base64 characters (A-Z, a-z, 0-9, +, /, =)
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Part)) {
-    return { ok: false, statusCode: 400, message: "Invalid Base64" }
+    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Base64" }
   }
 
   let decoded: string
   try {
     decoded = Buffer.from(base64Part, "base64").toString("utf8")
   } catch {
-    return { ok: false, statusCode: 400, message: "Invalid Base64" }
+    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Base64" }
   }
 
   const sep = decoded.indexOf(":")
   if (sep < 0) {
-    return { ok: false, statusCode: 400, message: "Invalid Basic format" }
+    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Basic format" }
   }
 
   const username = decoded.slice(0, sep)
