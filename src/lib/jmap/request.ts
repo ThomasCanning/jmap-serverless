@@ -81,9 +81,13 @@ function resolveResultReference(
   for (const response of methodResponses) {
     const [name, args, methodCallId] = response
 
-    if (methodCallId !== resultReference.resultOf) continue
-    if (name !== resultReference.name) continue
-    return evaluateJsonPointer(resultReference.path, args)
+    if (methodCallId === resultReference.resultOf) {
+      if (name !== resultReference.name) {
+        throw null
+      }
+      return evaluateJsonPointer(resultReference.path, args)
+    }
   }
+  // No response found with matching method call id
   throw null
 }
