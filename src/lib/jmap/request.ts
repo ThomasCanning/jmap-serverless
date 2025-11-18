@@ -17,6 +17,7 @@ export function processRequest(request: JmapRequest): JmapResponse {
     const seenKeys = new Set<string>()
 
     // Process each argument
+    let hasError = false
     for (const [key, value] of Object.entries(methodArguments)) {
       const strippedKey = key.startsWith("#") ? key.slice(1) : key
 
@@ -30,11 +31,8 @@ export function processRequest(request: JmapRequest): JmapResponse {
           methodCallId,
         ]
         methodResponses.push(errorResponse)
-        return {
-          methodResponses: methodResponses,
-          createdIds: request.createdIds,
-          sessionState: "todo",
-        }
+        hasError = true
+        break
       }
       seenKeys.add(strippedKey)
 
@@ -45,7 +43,7 @@ export function processRequest(request: JmapRequest): JmapResponse {
           const resolvedValue = resolveResultReference(resultReference, methodResponses)
           methodArguments[key] = resolvedValue
         } catch {
-          // If result reference invalid, add method error to responses and return
+          // If result reference invalid, add method error to responses
           const errorResponse: Invocation = [
             "error",
             {
@@ -54,13 +52,14 @@ export function processRequest(request: JmapRequest): JmapResponse {
             methodCallId,
           ]
           methodResponses.push(errorResponse)
-          return {
-            methodResponses: methodResponses,
-            createdIds: request.createdIds,
-            sessionState: "todo",
-          }
+          hasError = true
+          break
         }
       }
+    }
+
+    if (hasError) {
+      continue
     }
 
     // TODO Actually process the method here
