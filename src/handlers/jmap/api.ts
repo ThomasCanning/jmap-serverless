@@ -3,15 +3,12 @@ import { withAuth, jsonResponseHeaders } from "../../lib/auth"
 import { requestErrors, RequestError } from "../../lib/jmap/errors"
 import { StatusCodes } from "http-status-codes"
 import { z } from "zod"
-
-const requestSchema = z.object({
-  using: z.array(z.string()),
-  methodCalls: z.array(z.tuple([z.string(), z.record(z.string(), z.unknown()), z.string()])).min(1),
-  createdIds: z.record(z.string(), z.string()).optional(),
-})
+import { processRequest } from "../../lib/jmap/request"
+import { JmapRequest } from "../../lib/jmap/types"
 
 export const apiHandler = withAuth(
   async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
+    // Validate the request
     if (!event.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
       return {
         statusCode: StatusCodes.BAD_REQUEST,
@@ -67,10 +64,26 @@ export const apiHandler = withAuth(
       }
     }
 
-    return {
-      statusCode: StatusCodes.OK,
-      headers: jsonResponseHeaders(event),
-      body: JSON.stringify({ message: "Request received" }),
+    // Process the request
+    try {
+      const response = processRequest(requestAsSchema.data as JmapRequest)
+      return {
+        statusCode: StatusCodes.OK,
+        headers: jsonResponseHeaders(event),
+        body: JSON.stringify(response),
+      }
+    } catch (error) {
+      return {
+        statusCode: StatusCodes.BAD_REQUEST,
+        headers: jsonResponseHeaders(event),
+        body: JSON.stringify(error as RequestError),
+      }
     }
   }
 )
+
+const requestSchema = z.object({
+  using: z.array(z.string()),
+  methodCalls: z.array(z.tuple([z.string(), z.record(z.string(), z.unknown()), z.string()])).min(1),
+  createdIds: z.record(z.string(), z.string()).optional(),
+})

@@ -18,6 +18,9 @@ export type Date = string & { readonly __brand: "JmapDate" }
 /** UTCDate: Date with time-offset "Z" (UTC) */
 export type UTCDate = Date & { readonly __brand: "JmapUTCDate" }
 
+//TODO IJSON type
+export type JsonValue = ReturnType<typeof JSON.parse>
+
 // ------------------------------------------------------------
 
 // Session types
