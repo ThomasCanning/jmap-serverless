@@ -70,7 +70,7 @@ export const apiHandler = withAuth(
     // Check client is not using unknown capabilities
     for (const capability of requestAsSchema.data.using) {
       // check capability is in capabilities object
-      if (!(capability in capabilities)) {
+      if (!(Object.values(capabilities) as string[]).includes(capability)) {
         const requestError: RequestError = {
           type: requestErrors.unknownCapability,
           status: StatusCodes.BAD_REQUEST,
