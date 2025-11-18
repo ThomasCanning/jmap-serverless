@@ -17,6 +17,8 @@ export type RequestError = {
   limit?: string
 }
 
+// Method errors must not generate a http level error
+
 export const methodErrors = {
   serverUnavailable: "serverUnavailable",
   serverFail: "serverFail",
@@ -31,3 +33,9 @@ export const methodErrors = {
 } as const
 
 export type MethodErrorType = (typeof methodErrors)[keyof typeof methodErrors]
+
+export type MethodError = {
+  type: MethodErrorType
+  status: number
+  detail: string
+}
