@@ -68,13 +68,13 @@ export type CapabilityJmapCore = {
 // Tuple of [method name, arguments, method call id]
 export type Invocation = [string, Record<string, unknown>, string]
 
-export type Request = {
+export type JmapRequest = {
   using: string[] //capabilities
   methodCalls: Invocation[]
   createdIds?: Record<Id, Id> // map from client specified creation id to the id the server assigned when a record was successfully created
 }
 
-export type Response = {
+export type JmapResponse = {
   methodResponses: Invocation[]
   createdIds?: Record<Id, Id>
   sessionState: string

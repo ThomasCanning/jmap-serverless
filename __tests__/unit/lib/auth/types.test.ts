@@ -1,11 +1,11 @@
-import { isAuthenticatedContext, AuthResult } from "../../../../src/lib/auth/types"
+import { AuthResult } from "../../../../src/lib/auth/types"
 import { StatusCodes } from "http-status-codes"
 
 describe("types", () => {
-  describe("isAuthenticatedContext", () => {
+  describe("AuthResult", () => {
     it("returns true for authenticated context", () => {
       const result: AuthResult = { ok: true, bearerToken: "token" }
-      expect(isAuthenticatedContext(result)).toBe(true)
+      expect(result.ok).toBe(true)
     })
 
     it("returns false for error result", () => {
@@ -14,12 +14,12 @@ describe("types", () => {
         statusCode: StatusCodes.UNAUTHORIZED,
         message: "Unauthorized",
       }
-      expect(isAuthenticatedContext(result)).toBe(false)
+      expect(result.ok).toBe(false)
     })
 
     it("narrows type correctly", () => {
       const result: AuthResult = { ok: true, bearerToken: "token" }
-      if (isAuthenticatedContext(result)) {
+      if (result.ok) {
         // TypeScript should know result.bearerToken exists here
         expect(result.bearerToken).toBe("token")
       }

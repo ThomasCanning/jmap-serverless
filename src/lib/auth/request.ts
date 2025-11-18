@@ -43,7 +43,7 @@ export function extractCredentialsFromEvent(
   if (!authzHeader && !event.body) {
     return {
       ok: false,
-      statusCode: StatusCodes.BAD_REQUEST,
+      statusCode: StatusCodes.UNAUTHORIZED,
       message:
         'Missing username and password. Provide credentials in the request body as JSON: {"username": "user@example.com", "password": "password"}, or use Basic auth with the Authorization header.',
     }
@@ -57,7 +57,7 @@ export function extractCredentialsFromEvent(
   if (basicAuth.message === "Missing Basic auth" && !event.body) {
     return {
       ok: false,
-      statusCode: StatusCodes.BAD_REQUEST,
+      statusCode: StatusCodes.UNAUTHORIZED,
       message:
         'Missing username and password. Provide credentials in the request body as JSON: {"username": "user@example.com", "password": "password"}, or use Basic auth with the Authorization header.',
     }
@@ -72,7 +72,7 @@ export function extractRefreshTokenFromEvent(
   if (!event.body) {
     return {
       ok: false,
-      statusCode: StatusCodes.BAD_REQUEST,
+      statusCode: StatusCodes.UNAUTHORIZED,
       message:
         'Missing refresh token. Provide refresh token in request body as JSON: {"refreshToken": "..."}',
     }
@@ -89,7 +89,7 @@ export function extractRefreshTokenFromEvent(
     }
     return {
       ok: false,
-      statusCode: StatusCodes.BAD_REQUEST,
+      statusCode: StatusCodes.UNAUTHORIZED,
       message:
         'Missing or invalid refreshToken field. Provide refresh token in request body as JSON: {"refreshToken": "..."}',
     }

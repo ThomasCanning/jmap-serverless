@@ -4,6 +4,12 @@ import { requestErrors, RequestError } from "../../lib/jmap/errors"
 import { StatusCodes } from "http-status-codes"
 import { z } from "zod"
 
+const requestSchema = z.object({
+  using: z.array(z.string()),
+  methodCalls: z.array(z.tuple([z.string(), z.record(z.string(), z.unknown()), z.string()])).min(1),
+  createdIds: z.record(z.string(), z.string()).optional(),
+})
+
 export const apiHandler = withAuth(
   async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
     if (!event.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
@@ -30,9 +36,10 @@ export const apiHandler = withAuth(
       }
     }
 
-    let parsedBody: Record<string, unknown> | undefined
+    let jmapRequest: Request | undefined
     try {
-      parsedBody = JSON.parse(event.body)
+      //TODO ensure IJSON
+      jmapRequest = JSON.parse(event.body)
     } catch {
       return {
         statusCode: StatusCodes.BAD_REQUEST,
@@ -45,16 +52,9 @@ export const apiHandler = withAuth(
       }
     }
 
-    const requestSchema = z.object({
-      using: z.array(z.string()),
-      methodCalls: z
-        .array(z.tuple([z.string(), z.record(z.string(), z.unknown()), z.string()]))
-        .min(1),
-      createdIds: z.record(z.string(), z.string()).optional(),
-    })
+    const requestAsSchema = requestSchema.safeParse(jmapRequest)
 
-    const result = requestSchema.safeParse(parsedBody)
-    if (!result.success) {
+    if (!requestAsSchema.success) {
       return {
         statusCode: StatusCodes.BAD_REQUEST,
         headers: jsonResponseHeaders(event),

@@ -1,6 +1,6 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda"
 import { StatusCodes } from "http-status-codes"
-import { AuthenticatedContext, HandlerFunction, AuthResult, isAuthenticatedContext } from "./types"
+import { AuthenticatedContext, HandlerFunction, AuthResult } from "./types"
 import { getHeader, jsonResponseHeaders, parseBasicAuth } from "./headers"
 import { getTokenFromCookies } from "./cookies"
 import { setAuthCookies } from "./cookies"
@@ -115,7 +115,7 @@ async function handleRefreshFlow(
   }
 
   const refreshed = await tryRefreshToken(event, clientId)
-  if (refreshed && isAuthenticatedContext(refreshed)) {
+  if (refreshed && refreshed.ok) {
     const authWithUsername = ensureUsername(refreshed)
     const handlerResponse = await handler(event, authWithUsername)
     return buildResponseWithCookies(
@@ -145,7 +145,7 @@ async function handleBasicAuthFlow(
     return null
   }
 
-  if (isAuthenticatedContext(basic) && basic.bearerToken) {
+  if (basic.ok && basic.bearerToken) {
     const authWithUsername = ensureUsername(basic)
     const handlerResponse = await handler(event, authWithUsername)
     return buildResponseWithCookies(handlerResponse, event, basic.bearerToken, basic.refreshToken)
@@ -200,7 +200,7 @@ export function withAuth(
       // Try Bearer token first
       const bearerAuthResult = await verifyBearerFromEvent(event, clientId)
 
-      if (isAuthenticatedContext(bearerAuthResult)) {
+      if (bearerAuthResult.ok) {
         return await handleBearerSuccess(event, bearerAuthResult, handler)
       }
 

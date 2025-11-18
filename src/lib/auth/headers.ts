@@ -74,19 +74,19 @@ export function parseBasicAuth(
   const base64Part = authorizationHeader.slice(6)
   // Validate base64 characters (A-Z, a-z, 0-9, +, /, =)
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Part)) {
-    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Base64" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Invalid Base64" }
   }
 
   let decoded: string
   try {
     decoded = Buffer.from(base64Part, "base64").toString("utf8")
   } catch {
-    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Base64" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Invalid Base64" }
   }
 
   const sep = decoded.indexOf(":")
   if (sep < 0) {
-    return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Invalid Basic format" }
+    return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Invalid Basic format" }
   }
 
   const username = decoded.slice(0, sep)

@@ -53,7 +53,7 @@ export async function verifyBearerFromEvent(
     const decoded = decodeJwt(token)
     const issuer = decoded.iss
     if (!issuer || typeof issuer !== "string") {
-      return { ok: false, statusCode: StatusCodes.BAD_REQUEST, message: "Missing issuer claim" }
+      return { ok: false, statusCode: StatusCodes.UNAUTHORIZED, message: "Missing issuer claim" }
     }
 
     const userPoolId = extractUserPoolId(issuer)
