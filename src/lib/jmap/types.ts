@@ -79,3 +79,12 @@ export type Response = {
   createdIds?: Record<Id, Id>
   sessionState: string
 }
+
+// TODO implement usage of this in api handler
+export type ResultReference = {
+  resultOf: string
+  name: string
+  path: string
+}
+
+//implement helper for result reference according to algorithm
