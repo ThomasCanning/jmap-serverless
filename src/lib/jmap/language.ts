@@ -2,6 +2,7 @@ import { APIGatewayProxyEventV2 } from "aws-lambda"
 import acceptLanguage from "accept-language"
 
 // TODO support more languages
+// Would have to add translations
 export const supportedLanguages = ["en"] as const
 
 export type SupportedLanguage = (typeof supportedLanguages)[number]
