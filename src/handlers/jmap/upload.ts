@@ -3,8 +3,13 @@ import { withAuth, jsonResponseHeaders } from "../../lib/auth"
 import { StatusCodes } from "http-status-codes"
 import { upload } from "../../lib/jmap/blob/upload"
 import { Id } from "../../lib/jmap/types"
-import { capabilityJmapCore } from "../../lib/jmap/session"
-import { ProblemDetails, createProblemDetails, errorTypes } from "../../lib/errors"
+import { capabilityJmapCore } from "../../lib/jmap/session/get-session"
+import {
+  ProblemDetails,
+  createProblemDetails,
+  errorTypes,
+  isProblemDetails,
+} from "../../lib/errors"
 
 export const uploadHandler = withAuth(
   async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
@@ -52,7 +57,17 @@ export const uploadHandler = withAuth(
     }
 
     try {
-      const blobResponse = await upload(accountId, contentType, data)
+      const result = await upload(accountId, contentType, data)
+
+      if (isProblemDetails(result)) {
+        return {
+          statusCode: result.status,
+          headers: jsonResponseHeaders(event, true),
+          body: JSON.stringify(result),
+        }
+      }
+
+      const blobResponse = result
 
       return {
         statusCode: StatusCodes.CREATED,
@@ -60,10 +75,22 @@ export const uploadHandler = withAuth(
         body: JSON.stringify(blobResponse),
       }
     } catch (error) {
+      let problem: ProblemDetails
+      if (isProblemDetails(error)) {
+        problem = error
+      } else {
+        problem = createProblemDetails({
+          type: errorTypes.internalServerError,
+          status: StatusCodes.INTERNAL_SERVER_ERROR,
+          title: "Internal Server Error",
+          detail: "Failed to upload blob",
+        })
+      }
+
       return {
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        statusCode: problem.status,
         headers: jsonResponseHeaders(event, true),
-        body: JSON.stringify(error as ProblemDetails),
+        body: JSON.stringify(problem),
       }
     }
   }

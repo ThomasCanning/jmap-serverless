@@ -1,9 +1,10 @@
-import { Invocation, JmapRequest, JmapResponse, ResultReference } from "./types"
-import { evaluateJsonPointer } from "../json-pointer"
-import { JsonValue } from "./types"
-import { methodErrors } from "./errors"
-import { coreEcho } from "./core/echo"
-import { blobCopy } from "./blob/copy"
+import { Invocation } from "../types"
+import { JmapRequest, JmapResponse, ResultReference } from "./types"
+import { evaluateJsonPointer } from "./json-pointer"
+import { JsonValue } from "../types"
+import { methodErrors } from "../errors"
+import { coreEcho } from "../core/echo"
+import { blobCopy } from "../blob/copy"
 
 export function processRequest(request: JmapRequest): JmapResponse {
   // Track the responses for each method call
@@ -70,7 +71,7 @@ export function processRequest(request: JmapRequest): JmapResponse {
         methodResponse = coreEcho(methodCall)
         break
       case "Blob/copy":
-        methodResponse = await blobCopy(methodCall, accounts)
+        methodResponse = blobCopy(methodCall)
         break
       default:
         methodResponse = [

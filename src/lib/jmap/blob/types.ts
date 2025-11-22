@@ -1,4 +1,5 @@
-import { Id, UnsignedInt, SetError } from "../types"
+import { Id, UnsignedInt } from "../types"
+import { SetError } from "../api/types"
 
 export type UploadResponse = {
   accountId: Id

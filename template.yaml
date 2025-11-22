@@ -52,7 +52,7 @@ Globals:
     Environment:
       Variables:
         ALLOWED_ORIGINS: !Join [',', !Ref AllowedClientOrigins]
-        API_URL: !Sub 'https://${SubDomainName}.${RootDomainName}'
+        BASE_URL: !Sub 'https://${SubDomainName}.${RootDomainName}'
         USER_POOL_CLIENT_ID: !Ref UserPoolClient
         USER_POOL_ID: !Ref UserPool
 
@@ -308,9 +308,6 @@ Resources:
 
 
 Outputs:
-  HttpApiUrl:
-    Description: "HTTP API base URL"
-    Value: !Sub "https://${JmapHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
   HttpApiId:
     Description: "HTTP API ID"
     Value: !Ref JmapHttpApi

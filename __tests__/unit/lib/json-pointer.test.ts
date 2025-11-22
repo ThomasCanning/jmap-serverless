@@ -1,4 +1,4 @@
-import { evaluateJsonPointer } from "../../../src/lib/json-pointer"
+import { evaluateJsonPointer } from "../../../src/lib/jmap/api/json-pointer"
 
 describe("evaluateJsonPointer", () => {
   // Test document from RFC 6901 Section 5

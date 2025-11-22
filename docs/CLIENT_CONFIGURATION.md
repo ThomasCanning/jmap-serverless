@@ -39,11 +39,11 @@ See [AUTHENTICATION.md](AUTHENTICATION.md) for detailed authentication flows.
 For a React web client:
 
 ```typescript
-const JMAP_API_URL = "https://jmap.yourdomain.com"
-const JMAP_SESSION_URL = `${JMAP_API_URL}/jmap/session`
+const JMAP_BASE_URL = "https://jmap.yourdomain.com"
+const JMAP_SESSION_URL = `${JMAP_BASE_URL}/jmap/session`
 
 // Initial login
-fetch(`${JMAP_API_URL}/auth/token`, {
+fetch(`${JMAP_BASE_URL}/auth/token`, {
   method: "GET",
   credentials: "include", // Important: include cookies
   headers: {

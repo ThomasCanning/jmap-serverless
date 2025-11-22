@@ -42,7 +42,7 @@ output "dns_setup_instructions" {
   ))
 }
 
-output "api_url" {
+output "base_url" {
   description = "API base URL"
   value       = "https://${local.api_subdomain}.${var.root_domain_name}"
 }

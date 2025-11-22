@@ -13,7 +13,7 @@ export const errorTypes = {
 } as const
 
 export function createProblemDetails(options: ProblemDetails): ProblemDetails {
-  const apiUrl = process.env.API_URL || ""
+  const apiUrl = process.env.BASE_URL || ""
   return {
     type: `${apiUrl}/${options.type}`,
     status: options.status,

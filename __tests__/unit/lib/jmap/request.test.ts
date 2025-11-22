@@ -1,5 +1,6 @@
-import { processRequest } from "../../../../src/lib/jmap/request"
-import { JmapRequest, JmapResponse, Id } from "../../../../src/lib/jmap/types"
+import { processRequest } from "../../../../src/lib/jmap/api/request"
+import { JmapRequest, JmapResponse } from "../../../../src/lib/jmap/api/types"
+import { Id } from "../../../../src/lib/jmap/types"
 import { RequestError, methodErrors } from "../../../../src/lib/jmap/errors"
 import { coreEcho } from "../../../../src/lib/jmap/core/echo"
 

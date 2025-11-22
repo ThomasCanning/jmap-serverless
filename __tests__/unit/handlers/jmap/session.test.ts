@@ -24,13 +24,13 @@ jest.mock("../../../../src/lib/auth", () => {
 })
 
 describe("sessionHandler", () => {
-  const ORIGINAL_API_URL = process.env.API_URL
+  const ORIGINAL_BASE_URL = process.env.BASE_URL
   const ORIGINAL_DOWNLOAD_URL = process.env.DOWNLOAD_URL
   const ORIGINAL_UPLOAD_URL = process.env.UPLOAD_URL
   const ORIGINAL_EVENT_SOURCE_URL = process.env.EVENT_SOURCE_URL
 
   beforeEach(() => {
-    process.env.API_URL = "https://jmap.example.com/"
+    process.env.BASE_URL = "https://jmap.example.com/"
     process.env.DOWNLOAD_URL =
       "https://jmap.example.com/download/{accountId}/{blobId}?type={type}&name={name}"
     process.env.UPLOAD_URL = "https://jmap.example.com/upload/{accountId}"
@@ -39,7 +39,7 @@ describe("sessionHandler", () => {
   })
 
   afterEach(() => {
-    process.env.API_URL = ORIGINAL_API_URL
+    process.env.BASE_URL = ORIGINAL_BASE_URL
     process.env.DOWNLOAD_URL = ORIGINAL_DOWNLOAD_URL
     process.env.UPLOAD_URL = ORIGINAL_UPLOAD_URL
     process.env.EVENT_SOURCE_URL = ORIGINAL_EVENT_SOURCE_URL
@@ -80,7 +80,7 @@ describe("sessionHandler", () => {
         account1: "account1",
       },
       username: "testuser",
-      apiUrl: "https://jmap.example.com/",
+      apiUrl: "https://jmap.example.com/jmap",
       downloadUrl: "https://jmap.example.com/download/{accountId}/{blobId}?type={type}&name={name}",
       uploadUrl: "https://jmap.example.com/upload/{accountId}",
       eventSourceUrl:
@@ -163,8 +163,8 @@ describe("sessionHandler", () => {
     expect(typeof account.accountCapabilities).toBe("object")
   })
 
-  it("should normalize API_URL by removing trailing slash", async () => {
-    process.env.API_URL = "https://jmap.example.com/"
+  it("should normalize BASE_URL by removing trailing slash", async () => {
+    process.env.BASE_URL = "https://jmap.example.com/"
 
     const event = createBaseEvent({
       headers: { authorization: "Bearer test-token" },
@@ -173,12 +173,12 @@ describe("sessionHandler", () => {
     const res = await sessionHandler(event)
 
     const body = JSON.parse(res.body!)
-    expect(body.apiUrl).toBe("https://jmap.example.com/")
+    expect(body.apiUrl).toBe("https://jmap.example.com/jmap")
     expect(body.downloadUrl).toContain("https://jmap.example.com/download")
   })
 
-  it("should handle API_URL without trailing slash", async () => {
-    process.env.API_URL = "https://jmap.example.com"
+  it("should handle BASE_URL without trailing slash", async () => {
+    process.env.BASE_URL = "https://jmap.example.com"
 
     const event = createBaseEvent({
       headers: { authorization: "Bearer test-token" },
@@ -187,7 +187,7 @@ describe("sessionHandler", () => {
     const res = await sessionHandler(event)
 
     const body = JSON.parse(res.body!)
-    expect(body.apiUrl).toBe("https://jmap.example.com")
+    expect(body.apiUrl).toBe("https://jmap.example.com/jmap")
     expect(body.downloadUrl).toContain("https://jmap.example.com/download")
   })
 
@@ -246,8 +246,8 @@ describe("sessionHandler", () => {
     expect(body.primaryAccounts.account1).toBe("account1")
   })
 
-  it("returns 500 when API_URL is missing", async () => {
-    delete process.env.API_URL
+  it("returns 500 when BASE_URL is missing", async () => {
+    delete process.env.BASE_URL
 
     const event = createBaseEvent({
       headers: { authorization: "Bearer test-token" },
@@ -257,7 +257,7 @@ describe("sessionHandler", () => {
 
     expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
     const body = JSON.parse(res.body!)
-    expect(body.detail).toContain("API_URL")
+    expect(body.detail).toContain("BASE_URL")
     expect(body.status).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
     expect(body.type).toBe("/errors/internalServerError")
   })

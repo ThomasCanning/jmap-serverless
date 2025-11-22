@@ -3,7 +3,12 @@ import { withAuth, jsonResponseHeaders } from "../../lib/auth"
 import { StatusCodes } from "http-status-codes"
 import { download } from "../../lib/jmap/blob/download"
 import { Id } from "../../lib/jmap/types"
-import { ProblemDetails, createProblemDetails, errorTypes } from "../../lib/errors"
+import {
+  ProblemDetails,
+  createProblemDetails,
+  errorTypes,
+  isProblemDetails,
+} from "../../lib/errors"
 
 export const downloadHandler = withAuth(
   async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
@@ -28,7 +33,17 @@ export const downloadHandler = withAuth(
     }
 
     try {
-      const data = await download(accountId, blobId)
+      const result = await download(accountId, blobId)
+
+      if (isProblemDetails(result)) {
+        return {
+          statusCode: result.status,
+          headers: jsonResponseHeaders(event, true),
+          body: JSON.stringify(result),
+        }
+      }
+
+      const data = result
 
       return {
         statusCode: StatusCodes.OK,
@@ -42,10 +57,18 @@ export const downloadHandler = withAuth(
         isBase64Encoded: true,
       }
     } catch (error) {
+      const problem: ProblemDetails = isProblemDetails(error)
+        ? error
+        : createProblemDetails({
+            type: errorTypes.internalServerError,
+            status: StatusCodes.INTERNAL_SERVER_ERROR,
+            title: "Internal Server Error",
+            detail: "Failed to download blob",
+          })
       return {
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        statusCode: problem.status,
         headers: jsonResponseHeaders(event, true),
-        body: JSON.stringify(error as ProblemDetails),
+        body: JSON.stringify(problem),
       }
     }
   }

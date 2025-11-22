@@ -57,3 +57,13 @@ export type MethodError = {
 export function createMethodError(methodError: MethodError, methodCallId: string): Invocation {
   return ["error", methodError, methodCallId]
 }
+
+export function isRequestError(error: unknown): error is RequestError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    "status" in error &&
+    "detail" in error
+  )
+}

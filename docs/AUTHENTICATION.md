@@ -113,7 +113,7 @@ All errors return JSON: `{ "error": "message" }`
 
 - `USER_POOL_CLIENT_ID` - Cognito User Pool Client ID
 - `USER_POOL_ID` - Cognito User Pool ID
-- `API_URL` - Base API URL (for session endpoint)
+- `BASE_URL` - Base API URL (for session endpoint)
 - `IS_LOCAL_DEV` - Only set in local development (set to `"true"` by `generate-env-local.js` when running `make local`). Not set in production (defaults to production behavior with `SameSite=None` cookies).
 
 Set automatically by SAM from CloudFormation outputs. In local development, `IS_LOCAL_DEV` is automatically set to `"true"` by the `generate-env-local.js` script.

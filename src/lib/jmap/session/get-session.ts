@@ -1,16 +1,14 @@
-import {
-  Account,
-  Accounts,
-  capabilities,
-  CapabilityJmapCore,
-  Id,
-  Session,
-  SessionUrls,
-  UnsignedInt,
-} from "./types"
-import { createProblemDetails, errorTypes } from "../errors"
+import { UnsignedInt } from "../types"
+import { CapabilityJmapCore } from "./types"
+import { Session } from "./types"
+import { Id } from "../types"
+import { Account } from "./types"
+import { Accounts } from "./types"
+import { capabilities } from "./types"
 import { StatusCodes } from "http-status-codes"
-import { AuthResult } from "../auth/types"
+import { SessionUrls } from "./types"
+import { AuthResult } from "../../auth/types"
+import { createProblemDetails, errorTypes, isProblemDetails, ProblemDetails } from "../../errors"
 
 export const capabilityJmapCore: CapabilityJmapCore = {
   maxSizeUpload: 50000000 as UnsignedInt,
@@ -24,8 +22,12 @@ export const capabilityJmapCore: CapabilityJmapCore = {
 }
 
 // TODO get real account
-export function getSession(auth?: AuthResult): Session {
-  const sessionUrls = getSessionUrls()
+export function getSession(auth?: AuthResult): Session | ProblemDetails {
+  const sessionUrlsOrError = getSessionUrls()
+  if (isProblemDetails(sessionUrlsOrError)) {
+    return sessionUrlsOrError
+  }
+  const sessionUrls = sessionUrlsOrError
 
   // Create a mock account with proper Account structure
   const accountId = "account1" as Id
@@ -59,19 +61,21 @@ export function getSession(auth?: AuthResult): Session {
   return session
 }
 
-function getSessionUrls(): SessionUrls {
-  const apiUrl = process.env.API_URL
-  if (!apiUrl || apiUrl.trim().length === 0) {
-    throw createProblemDetails({
+function getSessionUrls(): SessionUrls | ProblemDetails {
+  const rawBaseUrl = process.env.BASE_URL
+  if (!rawBaseUrl || rawBaseUrl.trim().length === 0) {
+    return createProblemDetails({
       type: errorTypes.internalServerError,
       status: StatusCodes.INTERNAL_SERVER_ERROR,
-      detail: "API_URL environment variable is missing",
+      detail: "BASE_URL environment variable is missing",
     })
   }
 
+  const baseUrl = rawBaseUrl.replace(/\/+$/, "")
+
   const downloadUrl = process.env.DOWNLOAD_URL
   if (!downloadUrl || downloadUrl.trim().length === 0) {
-    throw createProblemDetails({
+    return createProblemDetails({
       type: errorTypes.internalServerError,
       status: StatusCodes.INTERNAL_SERVER_ERROR,
       detail: "DOWNLOAD_URL environment variable is missing",
@@ -79,7 +83,7 @@ function getSessionUrls(): SessionUrls {
   }
   const eventSourceUrl = process.env.EVENT_SOURCE_URL
   if (!eventSourceUrl || eventSourceUrl.trim().length === 0) {
-    throw createProblemDetails({
+    return createProblemDetails({
       type: errorTypes.internalServerError,
       status: StatusCodes.INTERNAL_SERVER_ERROR,
       detail: "EVENT_SOURCE_URL environment variable is missing",
@@ -87,7 +91,7 @@ function getSessionUrls(): SessionUrls {
   }
   const uploadUrl = process.env.UPLOAD_URL
   if (!uploadUrl || uploadUrl.trim().length === 0) {
-    throw createProblemDetails({
+    return createProblemDetails({
       type: errorTypes.internalServerError,
       status: StatusCodes.INTERNAL_SERVER_ERROR,
       detail: "UPLOAD_URL environment variable is missing",
@@ -95,7 +99,7 @@ function getSessionUrls(): SessionUrls {
   }
 
   return {
-    apiUrl: apiUrl,
+    apiUrl: `${baseUrl}/jmap`,
     downloadUrl: downloadUrl,
     uploadUrl: uploadUrl,
     eventSourceUrl: eventSourceUrl,

@@ -399,12 +399,12 @@ generate-outputs:
 	  CF_ID=$$(cd $(TF_DIR) && terraform output -raw cloudfront_distribution_id 2>/dev/null); \
 	  CF_DOMAIN=$$(cd $(TF_DIR) && terraform output -raw cloudfront_autodiscovery_target 2>/dev/null); \
 	  API_TARGET=$$(cd $(TF_DIR) && terraform output -raw api_gateway_target 2>/dev/null); \
-	  API_URL=$$(cd $(TF_DIR) && terraform output -raw jmap_api_url 2>/dev/null); \
+	  BASE_URL=$$(cd $(TF_DIR) && terraform output -raw base_url 2>/dev/null); \
 	  SESSION_ENDPOINT=$$(cd $(TF_DIR) && terraform output -raw jmap_session_endpoint 2>/dev/null); \
 	  echo "CloudFront Distribution ID: $$CF_ID" >> $(TF_DIR)/variableoutputs.txt; \
 	  echo "CloudFront Domain: $$CF_DOMAIN" >> $(TF_DIR)/variableoutputs.txt; \
 	  echo "API Gateway Target: $$API_TARGET" >> $(TF_DIR)/variableoutputs.txt; \
-	  echo "JMAP API URL: $$API_URL" >> $(TF_DIR)/variableoutputs.txt; \
+	  echo "JMAP API URL: $$BASE_URL" >> $(TF_DIR)/variableoutputs.txt; \
 	  echo "JMAP Session Endpoint: $$SESSION_ENDPOINT" >> $(TF_DIR)/variableoutputs.txt; \
 	  echo "" >> $(TF_DIR)/variableoutputs.txt; \
 	  echo "# For web client integration:" >> $(TF_DIR)/variableoutputs.txt; \
@@ -518,6 +518,8 @@ lint:
 	@echo "Linting and formatting files..."
 	@# Run lint-staged commands on all files (not just staged)
 	@npx eslint --fix "**/*.{ts,tsx}"
+	@echo "Running TypeScript type-checks..."
+	@npx tsc --noEmit
 	@npx prettier --write "**/*.{ts,tsx,json,md}"
 
 test:

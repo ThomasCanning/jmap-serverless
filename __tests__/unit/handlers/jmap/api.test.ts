@@ -4,7 +4,7 @@ import { createBaseEvent } from "../../lib/auth/__setup__"
 import { HandlerFunction } from "../../../../src/lib/auth/types"
 import { StatusCodes } from "http-status-codes"
 import { requestErrors } from "../../../../src/lib/jmap/errors"
-import { capabilities } from "../../../../src/lib/jmap/types"
+import { capabilities } from "../../../../src/lib/jmap/session/types"
 
 // Mock withAuth to bypass authentication
 jest.mock("../../../../src/lib/auth", () => {

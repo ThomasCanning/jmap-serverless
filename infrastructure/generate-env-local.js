@@ -54,9 +54,9 @@ for (const [resourceName, resource] of Object.entries(template.Resources || {}))
       envVars.USER_POOL_ID = userPoolId;
     }
     
-    // Check for API_URL
-    if (functionEnvVars.API_URL !== undefined || globalEnvVars.API_URL !== undefined) {
-      envVars.API_URL = apiBase;
+    // Check for BASE_URL
+    if (functionEnvVars.BASE_URL !== undefined || globalEnvVars.BASE_URL !== undefined) {
+      envVars.BASE_URL = apiBase;
     }
     
     // Add AWS_REGION for local dev if likely needed (Cognito usage)
